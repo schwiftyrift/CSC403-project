@@ -1,0 +1,15 @@
+name: 403-webserver
+
+services:
+  api:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8087:8000"      # left side: the port NPM forwards to
+    volumes:
+      - uploads:/data    # uploads survive restarts and rebuilds
+    environment:
+      MAX_UPLOAD_MB: "500"
+
+volumes:
+  uploads:

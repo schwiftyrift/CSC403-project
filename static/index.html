@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Transcript Service</title>
+  <style>
+    :root { --accent: #1f3864; --bg: #f6f7f9; --card: #fff; --text: #1b1f24; --muted: #5f6b7a; --line: #c9d1dc; --err: #b00020; --ok: #1a7f37; }
+    @media (prefers-color-scheme: dark) {
+      :root { --accent: #7aa2f7; --bg: #14171c; --card: #1d2229; --text: #e8ebf0; --muted: #9aa5b4; --line: #3a4350; --err: #ff6b81; --ok: #56d364; }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+    main { max-width: 36rem; margin: 3rem auto; padding: 0 1rem; }
+    h1 { margin: 0 0 .25rem; font-size: 1.6rem; }
+    .sub { margin: 0 0 1.5rem; color: var(--muted); }
+    .card { background: var(--card); border-radius: 12px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+
+    #drop { display: block; border: 2px dashed var(--line); border-radius: 10px; padding: 2.5rem 1rem; text-align: center; cursor: pointer; transition: border-color .15s, background .15s; }
+    #drop:hover, #drop:focus-within { border-color: var(--accent); }
+    #drop.over { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+    #drop strong { display: block; font-size: 1.05rem; margin-bottom: .25rem; }
+    #drop span { color: var(--muted); font-size: .9rem; }
+    #file { position: absolute; width: 1px; height: 1px; opacity: 0; } /* visually hidden, still keyboard-accessible */
+
+    #chosen { display: none; margin-top: 1rem; padding: .75rem 1rem; border: 1px solid var(--line); border-radius: 8px; justify-content: space-between; align-items: center; gap: 1rem; }
+    #chosen.show { display: flex; }
+    #name { overflow-wrap: anywhere; font-weight: 600; }
+    #size { color: var(--muted); font-size: .85rem; }
+    .row { display: flex; gap: .5rem; margin-top: 1rem; }
+    button { font: inherit; padding: .6rem 1.1rem; border-radius: 8px; border: 1px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer; }
+    @media (prefers-color-scheme: dark) { button { color: #0b1020; } }
+    button.secondary { background: transparent; color: var(--accent); }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    progress { width: 100%; margin-top: 1rem; display: none; }
+    progress.show { display: block; }
+    #status { margin-top: 1rem; min-height: 1.4em; }
+    #status.error { color: var(--err); }
+    #status.ok { color: var(--ok); }
+    pre { margin: 1rem 0 0; padding: 1rem; background: var(--bg); border-radius: 8px; white-space: pre-wrap; overflow-wrap: anywhere; display: none; }
+    pre.show { display: block; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Transcript Service</h1>
+  <p class="sub">Upload an audio or video file to turn it into text.</p>
+
+  <div class="card">
+    <label id="drop" for="file">
+      <strong>Drag a file here</strong>
+      <span>or click to choose one &middot; mp3, wav, m4a, mp4, mov</span>
+    </label>
+    <input type="file" id="file" accept=".mp3,.wav,.m4a,.mp4,.mov,audio/*,video/*">
+
+    <div id="chosen">
+      <div><div id="name"></div><div id="size"></div></div>
+      <button type="button" class="secondary" id="clear">Remove</button>
+    </div>
+
+    <progress id="bar" max="100" value="0"></progress>
+
+    <div class="row"><button type="button" id="go" disabled>Upload</button></div>
+    <div id="status" role="status" aria-live="polite"></div>
+    <pre id="result"></pre>
+  </div>
+</main>
+
+<script>
+// ---- Settings ---------------------------------------------------------------
+// Set API_URL to your upload endpoint (for example "/api/jobs") to send the file
+// to a real server. Leave it empty to run in demo mode, which uploads nothing and
+// just shows what was chosen.
+const API_URL = "";
+const ALLOWED = [".mp3", ".wav", ".m4a", ".mp4", ".mov"];
+const MAX_MB = 500;
+// -----------------------------------------------------------------------------
+
+const $ = (id) => document.getElementById(id);
+const drop = $("drop"), input = $("file"), chosen = $("chosen"), bar = $("bar");
+const go = $("go"), statusEl = $("status"), result = $("result");
+let selected = null;
+
+function say(text, kind = "") { statusEl.textContent = text; statusEl.className = kind; }
+
+function humanSize(bytes) {
+  if (bytes < 1024) return bytes + " B";
+  if (bytes < 1024 ** 2) return (bytes / 1024).toFixed(1) + " KB";
+  if (bytes < 1024 ** 3) return (bytes / 1024 ** 2).toFixed(1) + " MB";
+  return (bytes / 1024 ** 3).toFixed(2) + " GB";
+}
+
+function setFile(file) {
+  result.className = ""; result.textContent = "";
+  bar.className = ""; bar.value = 0;
+  const ext = "." + (file.name.split(".").pop() || "").toLowerCase();
+  if (!ALLOWED.includes(ext)) { clearFile(); say("Unsupported file type. Use " + ALLOWED.join(", ") + ".", "error"); return; }
+  if (file.size > MAX_MB * 1024 * 1024) { clearFile(); say("File is larger than " + MAX_MB + " MB.", "error"); return; }
+  selected = file;
+  $("name").textContent = file.name;
+  $("size").textContent = humanSize(file.size);
+  chosen.classList.add("show");
+  go.disabled = false;
+  say("");
+}
+
+function clearFile() {
+  selected = null; input.value = "";
+  chosen.classList.remove("show");
+  go.disabled = true;
+}
+
+input.addEventListener("change", () => { if (input.files[0]) setFile(input.files[0]); });
+$("clear").addEventListener("click", () => { clearFile(); say(""); result.className = ""; bar.className = ""; });
+
+// Drag and drop
+["dragenter", "dragover"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", (e) => {
+  const files = e.dataTransfer.files;
+  if (files.length > 1) say("Only one file at a time. Using the first one.", "error");
+  if (files[0]) setFile(files[0]);
+});
+// Stop the browser from opening a file that is dropped outside the box
+["dragover", "drop"].forEach((ev) => window.addEventListener(ev, (e) => e.preventDefault()));
+
+go.addEventListener("click", () => {
+  if (!selected) return;
+  if (!API_URL) {  // demo mode
+    result.textContent = JSON.stringify({ mode: "demo (nothing uploaded)", filename: selected.name, size: humanSize(selected.size), type: selected.type || "unknown" }, null, 2);
+    result.className = "show";
+    say("Demo mode: file chosen but not sent. Set API_URL in this page to upload for real.", "ok");
+    return;
+  }
+
+  const form = new FormData();
+  form.append("file", selected);
+  const xhr = new XMLHttpRequest();
+  xhr.open("POST", API_URL);
+  go.disabled = true; bar.className = "show"; bar.value = 0; result.className = ""; say("Uploading...");
+
+  xhr.upload.onprogress = (e) => { if (e.lengthComputable) bar.value = (e.loaded / e.total) * 100; };
+  xhr.onload = () => {
+    let body = {};
+    try { body = JSON.parse(xhr.responseText); } catch (_) {}
+    if (xhr.status >= 200 && xhr.status < 300) {
+      say("Upload complete.", "ok");
+      result.textContent = JSON.stringify(body, null, 2); result.className = "show";
+    } else {
+      say("Error: " + (body.error || "request failed (" + xhr.status + ")"), "error");
+    }
+    go.disabled = false;
+  };
+  xhr.onerror = () => { say("Could not reach the server.", "error"); go.disabled = false; };
+  xhr.send(form);
+});
+</script>
+</body>
+</html>
