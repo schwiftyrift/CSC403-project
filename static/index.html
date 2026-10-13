@@ -39,9 +39,110 @@
     #status.ok { color: var(--ok); }
     pre { margin: 1rem 0 0; padding: 1rem; background: var(--bg); border-radius: 8px; white-space: pre-wrap; overflow-wrap: anywhere; display: none; }
     pre.show { display: block; }
+
+    /* side bar menu*/
+    :root {
+      --sidebar-width: 250px;
+    }
+    /*menu button*/
+    .menu-button {
+      position: fixed;
+      top: 1rem;
+      left: 1rem;
+
+      width: 45px;
+      height: 45px;
+
+      padding: 0;
+
+      font-size: 1.5rem;
+
+      z-index: 1001;
+
+      transition: left 0.3s ease;
+    }
+
+    /*side bar*/
+    .sidebar {
+      position: fixed;
+
+      top: 0;
+      left: 0;
+
+      width: var(--sidebar-width);
+      height: 100vh;
+
+      background: var(--card);
+
+      padding: 5rem 1.5rem 1.5rem;
+
+      box-shadow: 2px 0 5px rgba(0,0,0,.2);
+
+      transform: translateX(-100%);
+
+      transition: transform 0.3s ease;
+
+      z-index: 1000;
+
+      display: flex;
+      flex-direction: column;
+    }
+
+    .logout {
+      margin-top: auto;
+    }
+
+    /*side bar open*/
+    .sidebar.open {
+      transform: translateX(0);
+    }
+
+    .menu-button.open {
+      left: calc(var(--sidebar-width) + 1rem);
+    }
+
+    /*sidebar links*/
+    .sidebar a {
+      display: block;
+      padding: 0.75rem 0;
+
+      color: var(--text);
+
+      text-decoration: none;
+
+      border-bottom: 1px solid var(--line);
+    }
+
+    .sidebar a:hover {
+      color: var(--accent);
+    }
+
   </style>
 </head>
 <body>
+
+<button 
+  type="button"
+  id="menuButton"
+  class="menu-button"
+  aria-label="Open navigation menu"
+  aria-expanded="false"
+>
+  ☰
+</button>
+
+<nav id="sidebar" class="sidebar">
+  <div class="sidebar-top">
+    <h2>Transcript Service</h2>
+    <a href="/">Home</a>
+    <a href="/transcribe">Transcribe</a>
+    <a href="/archive">Archive</a>
+    <a href="/settings">User Settings</a>
+  </div>
+
+    <a href="/login" class="logout">Log Out</a>
+</nav>
+
 <main>
   <h1>Transcript Service</h1>
   <p class="sub">Upload an audio or video file to turn it into text.</p>
@@ -154,6 +255,19 @@ go.addEventListener("click", () => {
   xhr.onerror = () => { say("Could not reach the server.", "error"); go.disabled = false; };
   xhr.send(form);
 });
+
+const menuButton = document.getElementById("menuButton");
+const sideBar = document.getElementById("sidebar");
+
+menuButton.addEventListener("click", () => {
+  sideBar.classList.toggle("open");
+  menuButton.classList.toggle("open");
+
+  const isOpen = sidebar.classList.contains("open");
+
+  menuButton.setAttribute("aria-expanded", isOpen);
+});
+
 </script>
 </body>
 </html>
