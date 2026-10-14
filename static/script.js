@@ -2,7 +2,7 @@
 // Set API_URL to your upload endpoint (for example "/api/jobs") to send the file
 // to a real server. Leave it empty to run in demo mode, which uploads nothing and
 // just shows what was chosen.
-const API_URL = "";
+const API_URL = "/jobs";
 const ALLOWED = [".mp3", ".wav", ".m4a", ".mp4", ".mov"];
 const MAX_MB = 500;
 // -----------------------------------------------------------------------------
@@ -60,7 +60,7 @@ go.addEventListener("click", () => {
   if (!API_URL) {  // demo mode
     result.textContent = JSON.stringify({ mode: "demo (nothing uploaded)", filename: selected.name, size: humanSize(selected.size), type: selected.type || "unknown" }, null, 2);
     result.className = "show";
-    say("Demo mode: file chosen but not sent. Set API_URL in this page to upload for real.", "ok");
+    say("Demo mode: file chosen but not sent. Set API_URL in script.js to upload for real.", "ok");
     return;
   }
 
@@ -93,7 +93,7 @@ menuButton.addEventListener("click", () => {
   sideBar.classList.toggle("open");
   menuButton.classList.toggle("open");
 
-  const isOpen = sidebar.classList.contains("open");
+  const isOpen = sideBar.classList.contains("open");
 
   menuButton.setAttribute("aria-expanded", isOpen);
 });
