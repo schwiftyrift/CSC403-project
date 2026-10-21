@@ -1,37 +1,195 @@
-:root { --accent: #1f3864; --bg: #f6f7f9; --card: #fff; --text: #1b1f24; --muted: #5f6b7a; --line: #c9d1dc; --err: #b00020; --ok: #1a7f37; }
-@media (prefers-color-scheme: dark) {
-    :root { --accent: #7aa2f7; --bg: #14171c; --card: #1d2229; --text: #e8ebf0; --muted: #9aa5b4; --line: #3a4350; --err: #ff6b81; --ok: #56d364; }
+:root {
+    --accent: #1f3864;
+    --bg: #f6f7f9;
+    --card: #fff;
+    --text: #1b1f24;
+    --muted: #5f6b7a;
+    --line: #c9d1dc;
+    --err: #b00020;
+    --ok: #1a7f37;
 }
+@media (prefers-color-scheme: dark) {
+    :root { --accent: #7aa2f7;
+        --bg: #14171c;
+        --card: #1d2229;
+        --text: #e8ebf0;
+        --muted: #9aa5b4;
+        --line: #3a4350;
+        --err: #ff6b81;
+        --ok: #56d364;
+    }
+}
+
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
-main { max-width: 36rem; margin: 3rem auto; padding: 0 1rem; }
-h1 { margin: 0 0 .25rem; font-size: 1.6rem; }
-.sub { margin: 0 0 1.5rem; color: var(--muted); }
-.card { background: var(--card); border-radius: 12px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
 
-#drop { display: block; border: 2px dashed var(--line); border-radius: 10px; padding: 2.5rem 1rem; text-align: center; cursor: pointer; transition: border-color .15s, background .15s; }
-#drop:hover, #drop:focus-within { border-color: var(--accent); }
-#drop.over { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
-#drop strong { display: block; font-size: 1.05rem; margin-bottom: .25rem; }
-#drop span { color: var(--muted); font-size: .9rem; }
-#file { position: absolute; width: 1px; height: 1px; opacity: 0; } /* visually hidden, still keyboard-accessible */
+main {
+    max-width: 36rem;
+    margin: 3rem auto;
+    padding: 0 1rem;
+}
 
-#chosen { display: none; margin-top: 1rem; padding: .75rem 1rem; border: 1px solid var(--line); border-radius: 8px; justify-content: space-between; align-items: center; gap: 1rem; }
-#chosen.show { display: flex; }
-#name { overflow-wrap: anywhere; font-weight: 600; }
-#size { color: var(--muted); font-size: .85rem; }
-.row { display: flex; gap: .5rem; margin-top: 1rem; }
-button { font: inherit; padding: .6rem 1.1rem; border-radius: 8px; border: 1px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer; }
-@media (prefers-color-scheme: dark) { button { color: #0b1020; } }
-button.secondary { background: transparent; color: var(--accent); }
-button:disabled { opacity: .5; cursor: not-allowed; }
-progress { width: 100%; margin-top: 1rem; display: none; }
-progress.show { display: block; }
-#status { margin-top: 1rem; min-height: 1.4em; }
-#status.error { color: var(--err); }
-#status.ok { color: var(--ok); }
-pre { margin: 1rem 0 0; padding: 1rem; background: var(--bg); border-radius: 8px; white-space: pre-wrap; overflow-wrap: anywhere; display: none; }
-pre.show { display: block; }
+h1 {
+    margin: 0 0 .25rem;
+    font-size: 1.6rem;
+}
+
+/* =========================
+   INDEX PAGE
+   ========================= */
+
+.sub {
+    margin: 0 0 1.5rem;
+    color: var(--muted);
+}
+
+.card {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 1.25rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,.12);
+}
+
+#drop {
+    display: block;
+    border: 2px dashed var(--line);
+    border-radius: 10px; padding: 2.5rem 1rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+}
+
+#drop:hover, #drop:focus-within {
+    border-color: var(--accent);
+}
+#drop.over {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+#drop strong {
+    display: block;
+    font-size: 1.05rem;
+    margin-bottom: .25rem;
+}
+
+#drop span {
+    color: var(--muted);
+    font-size: .9rem;
+}
+
+#file { position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+} /* visually hidden, still keyboard-accessible */
+
+#chosen {
+    display: none;
+    margin-top: 1rem;
+    padding: .75rem 1rem;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+}
+
+#chosen.show {
+    display: flex;
+}
+
+#name {
+    overflow-wrap: anywhere;
+    font-weight: 600;
+}
+
+#size {
+    color: var(--muted);
+    font-size: .85rem;
+}
+
+.row {
+    display: flex;
+    gap: .5rem;
+    margin-top: 1rem;
+}
+
+button {
+    font: inherit;
+    padding: .6rem 1.1rem;
+    border-radius: 8px;
+    border: 1px solid var(--accent);
+    background: var(--accent);
+    color: #fff;
+    cursor: pointer;
+}
+
+@media (prefers-color-scheme: dark) {
+    button {
+        color: #0b1020;
+    }
+}
+
+button.secondary {
+    background: transparent;
+    color: var(--accent);
+}
+
+button:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+}
+
+progress {
+    width: 100%;
+    margin-top: 1rem;
+    display: none;
+}
+
+progress.show {
+    display: block;
+}
+
+#status {
+    margin-top: 1rem;
+    min-height: 1.4em;
+}
+
+#status.error {
+    color: var(--err);
+}
+
+#status.ok {
+    color: var(--ok);
+}
+
+pre {
+    margin: 1rem 0 0;
+    padding: 1rem;
+    background: var(--bg);
+    border-radius: 8px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    display: none;
+}
+
+pre.show {
+    display: block;
+}
+
+#transcribe {
+    display: none;
+}
+
+#transcribe.show {
+    display: block;
+}
 
 /* side bar menu*/
 :root {
@@ -109,3 +267,90 @@ pre.show { display: block; }
 .sidebar a:hover {
     color: var(--accent);
 }
+
+
+/* =========================
+   LOGIN PAGE
+   ========================= */
+
+
+.loginPage main{
+    min-height: 50vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+
+}
+
+.loginContainer input{
+    display: flex;
+    flex-direction: column;
+
+    width: 20rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+
+
+    background: var(--bg);
+    color: var(--text);
+
+    font-size: 1rem;
+
+    outline: none;
+
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+.loginContainer input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.passwordWrapper{
+    position: relative;
+}
+
+.passwordWrapper input {
+    width: 20rem;
+    padding-right: 4.5rem;
+}
+
+#showPassword {
+    position: absolute;
+
+   right: 0%;
+    top: 50%;
+
+
+    transform: translateY(-50%);
+
+    background: transparent;
+    border: none;
+
+    color: var(--accent);
+    cursor: pointer;
+
+    z-index: 1;
+}
+
+button.loginButton {
+    color: var(--card);
+    cursor: pointer;
+    margin-top: 1rem;
+}
+
+
+[hidden] { display: none !important; }
+.card { margin-top: 1rem; }
+#historyList article { border-top: 1px solid var(--line); margin-top: 1rem; padding-top: 1rem; overflow-wrap: anywhere; }
+#historyList a { color: var(--accent); }
+.loginContainer { width: min(20rem, 100%); }
+.loginContainer input, .passwordWrapper input { width: 100%; }
+.loginContainer label { display: block; margin-top: 1rem; }
+.loginPage h1 { margin-bottom: 1rem; }
+#accountStatus { overflow-wrap: anywhere; }
+#accountStatus.error { color: var(--err); }
