@@ -1,5 +1,19 @@
-.venv/
-__pycache__/
-.pytest_cache/
+# runtime data
 data/
+*.db
+*.db-wal
+*.db-shm
+
+# python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# secrets / local
 .env
+
+# scratch
+*.bak
+*.bak.*
+_to_delete/

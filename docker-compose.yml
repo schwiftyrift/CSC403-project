@@ -2,14 +2,29 @@ name: 403-webserver
 
 services:
   api:
-    build: .
+    build:
+      context: .
+      dockerfile: Main/Dockerfile
     restart: unless-stopped
     ports:
       - "8087:8000"      # left side: the port NPM forwards to
     volumes:
-      - uploads:/data    # uploads survive restarts and rebuilds
+      - uploads:/data    # uploads + app.db survive restarts and rebuilds
     environment:
       MAX_UPLOAD_MB: "500"
 
+  worker:
+    build:
+      context: .
+      dockerfile: Transcribe/Dockerfile
+    restart: unless-stopped
+    volumes:
+      - uploads:/data            # same volume, same path as the api
+      - whisper_models:/models   # model cache so rebuilds don't re-download
+    environment:
+      WHISPER_MODEL: medium
+      WHISPER_THREADS: "4"
+
 volumes:
-  uploads:
+  uploads:          # keep this name: renaming it creates a new, empty volume
+  whisper_models:
