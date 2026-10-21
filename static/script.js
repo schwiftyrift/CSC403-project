@@ -39,6 +39,7 @@ function clearFile() {
   selected = null; input.value = "";
   chosen.classList.remove("show");
   go.disabled = true;
+  transcribe.classList.remove("show")
 }
 
 input.addEventListener("change", () => { if (input.files[0]) setFile(input.files[0]); });
@@ -63,7 +64,8 @@ go.addEventListener("click", () => {
     say("Demo mode: file chosen but not sent. Set API_URL in script.js to upload for real.", "ok");
     return;
   }
-
+  
+  const transcribe = document.getElementById("transcribe");
   const form = new FormData();
   form.append("file", selected);
   const xhr = new XMLHttpRequest();
@@ -77,6 +79,7 @@ go.addEventListener("click", () => {
     if (xhr.status >= 200 && xhr.status < 300) {
       say("Upload complete.", "ok");
       result.textContent = JSON.stringify(body, null, 2); result.className = "show";
+      transcribe.classList.add("show");
     } else {
       say("Error: " + (body.error || "request failed (" + xhr.status + ")"), "error");
     }
@@ -96,5 +99,9 @@ menuButton.addEventListener("click", () => {
   const isOpen = sideBar.classList.contains("open");
 
   menuButton.setAttribute("aria-expanded", isOpen);
+});
+
+transcribe.addEventListener("click", ()=> {
+  window.location.href = "/transcribe.html";
 });
 
