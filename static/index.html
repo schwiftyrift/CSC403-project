@@ -22,19 +22,34 @@
   <div class="sidebar-top">
     <h2>Transcript Service</h2>
     <a href="/">Home</a>
-    <a href="/transcribe">Transcribe</a>
-    <a href="/archive">Archive</a>
-    <a href="/settings">User Settings</a>
+    <a href="#upload">Upload</a>
+    <a href="#history">Your uploads</a>
+    <a href="#account">Account</a>
   </div>
 
-  <a href="/login" class="logout">Log Out</a>
+  <button type="button" id="logout" class="logout" hidden>Log Out</button>
 </nav>
 
 <main>
   <h1>Transcript Service</h1>
-  <p class="sub">Upload an audio or video file to turn it into text.</p>
+  <p class="sub">Upload and store audio or video files in your account. Automatic transcription is not available yet.</p>
 
-  <div class="card">
+  <section class="card" id="account">
+    <h2>Account</h2>
+    <p id="accountStatus" role="status">Sign in to upload files and view your history.</p>
+    <form id="authForm">
+      <label>Email <input id="email" type="email" autocomplete="email" required maxlength="254"></label>
+      <label>Password (12-128 characters) <input id="password" type="password" autocomplete="current-password" minlength="12" maxlength="128" required></label>
+      <div class="row"><button type="submit">Log in</button><button type="submit" id="register" class="secondary">Create account</button></div>
+    </form>
+  </section>
+  <section class="card" id="history" hidden>
+    <h2>Your uploads</h2>
+    <button type="button" id="refreshHistory" class="secondary">Refresh history</button>
+    <div id="historyList"></div>
+    <button type="button" id="moreHistory" hidden>Load more</button>
+  </section>
+  <div class="card" id="upload">
     <label id="drop" for="file">
       <strong>Drag a file here</strong>
       <span>or click to choose one &middot; mp3, wav, m4a, mp4, mov</span>

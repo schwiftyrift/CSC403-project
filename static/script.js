@@ -1,7 +1,3 @@
-// ---- Settings ---------------------------------------------------------------
-// Set API_URL to your upload endpoint (for example "/api/jobs") to send the file
-// to a real server. Leave it empty to run in demo mode, which uploads nothing and
-// just shows what was chosen.
 const API_URL = "/jobs";
 const ALLOWED = [".mp3", ".wav", ".m4a", ".mp4", ".mov"];
 const MAX_MB = 500;
@@ -11,6 +7,7 @@ const $ = (id) => document.getElementById(id);
 const drop = $("drop"), input = $("file"), chosen = $("chosen"), bar = $("bar");
 const go = $("go"), statusEl = $("status"), result = $("result");
 let selected = null;
+let signedIn = false;
 
 function say(text, kind = "") { statusEl.textContent = text; statusEl.className = kind; }
 
@@ -31,7 +28,7 @@ function setFile(file) {
   $("name").textContent = file.name;
   $("size").textContent = humanSize(file.size);
   chosen.classList.add("show");
-  go.disabled = false;
+  go.disabled = !signedIn;
   say("");
 }
 
@@ -56,14 +53,7 @@ drop.addEventListener("drop", (e) => {
 ["dragover", "drop"].forEach((ev) => window.addEventListener(ev, (e) => e.preventDefault()));
 
 go.addEventListener("click", () => {
-  if (!selected) return;
-  if (!API_URL) {  // demo mode
-    result.textContent = JSON.stringify({ mode: "demo (nothing uploaded)", filename: selected.name, size: humanSize(selected.size), type: selected.type || "unknown" }, null, 2);
-    result.className = "show";
-    say("Demo mode: file chosen but not sent. Set API_URL in script.js to upload for real.", "ok");
-    return;
-  }
-
+  if (!selected || !signedIn) return;
   const form = new FormData();
   form.append("file", selected);
   const xhr = new XMLHttpRequest();
@@ -76,13 +66,14 @@ go.addEventListener("click", () => {
     try { body = JSON.parse(xhr.responseText); } catch (_) {}
     if (xhr.status >= 200 && xhr.status < 300) {
       say("Upload complete.", "ok");
-      result.textContent = JSON.stringify(body, null, 2); result.className = "show";
+      loadHistory().catch(e => say(e.message, "error"));
+      result.textContent = `${body.filename} saved to your account.`; result.className = "show";
     } else {
       say("Error: " + (body.error || "request failed (" + xhr.status + ")"), "error");
     }
-    go.disabled = false;
+    go.disabled = !signedIn;
   };
-  xhr.onerror = () => { say("Could not reach the server.", "error"); go.disabled = false; };
+  xhr.onerror = () => { say("Could not reach the server.", "error"); go.disabled = !signedIn; };
   xhr.send(form);
 });
 
@@ -96,4 +87,62 @@ menuButton.addEventListener("click", () => {
   const isOpen = sideBar.classList.contains("open");
 
   menuButton.setAttribute("aria-expanded", isOpen);
+});
+async function api(url, options = {}) {
+  const response = await fetch(url, options);
+  const body = response.status === 204 ? null : await response.json();
+  if (!response.ok) {
+    if (response.status === 401) setAccount(null);
+    throw new Error(body.error || "Request failed");
+  }
+  return body;
+}
+function setAccount(user) {
+  signedIn = Boolean(user);
+  $("accountStatus").textContent = user ? `Signed in as ${user.email}` : "Sign in to upload files and view your history.";
+  $("authForm").hidden = signedIn;
+  $("logout").hidden = !signedIn;
+  $("history").hidden = !signedIn;
+  go.disabled = !signedIn || !selected;
+  if (!signedIn) { $("historyList").replaceChildren(); result.textContent = ""; }
+}
+$("authForm").addEventListener("submit", async event => {
+  event.preventDefault();
+  const buttons = $("authForm").querySelectorAll("button");
+  buttons.forEach(button => button.disabled = true);
+  try {
+    const action = event.submitter?.id === "register" ? "register" : "login";
+    const user = await api(`/auth/${action}`, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({email: $("email").value, password: $("password").value})});
+    $("password").value = "";
+    setAccount(user);
+    await loadHistory();
+  } catch (error) { $("accountStatus").textContent = error.message; }
+  finally { buttons.forEach(button => button.disabled = false); }
+});
+$("logout").addEventListener("click", async () => {
+  try { await api("/auth/logout", {method: "POST"}); setAccount(null); }
+  catch (error) { say(error.message, "error"); }
+});
+let historyOffset = 0;
+async function loadHistory(append = false) {
+  if (!append) { historyOffset = 0; $("historyList").replaceChildren(); }
+  const jobs = await api(`/jobs?limit=50&offset=${historyOffset}`);
+  historyOffset += jobs.length;
+  $("moreHistory").hidden = jobs.length < 50;
+  if (!append && !jobs.length) $("historyList").textContent = "No uploads yet.";
+  for (const job of jobs) {
+    const article = document.createElement("article");
+    const title = document.createElement("h3"); title.textContent = job.filename;
+    const link = document.createElement("a"); link.href = `/jobs/${job.job_id}/file`; link.textContent = "Download file";
+    const details = document.createElement("p");
+    details.textContent = `${humanSize(job.size_bytes)} - Uploaded ${new Date(job.uploaded_at * 1000).toLocaleString()}`;
+    article.append(title, details, link);
+    $("historyList").append(article);
+  }
+}
+$("refreshHistory").onclick = () => loadHistory().catch(error => say(error.message, "error"));
+$("moreHistory").onclick = () => loadHistory(true).catch(error => say(error.message, "error"));
+setAccount(null);
+api("/auth/me").then(async user => { setAccount(user); await loadHistory(); }).catch(error => {
+  if (signedIn) say(error.message, "error");
 });

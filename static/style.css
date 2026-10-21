@@ -109,3 +109,10 @@ pre.show { display: block; }
 .sidebar a:hover {
     color: var(--accent);
 }
+
+[hidden] { display: none !important; }
+.card { margin-top: 1rem; }
+#authForm label { display: block; margin-top: .75rem; }
+#authForm input { display: block; width: 100%; padding: .6rem; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; }
+#historyList article { border-top: 1px solid var(--line); margin-top: 1rem; padding-top: 1rem; overflow-wrap: anywhere; }
+#historyList a { color: var(--accent); }
