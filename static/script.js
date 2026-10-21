@@ -69,6 +69,7 @@ go.addEventListener("click", () => {
       loadHistory().catch(e => say(e.message, "error"));
       result.textContent = `${body.filename} saved to your account.`; result.className = "show";
     } else {
+      if (xhr.status === 401) setAccount(null);
       say("Error: " + (body.error || "request failed (" + xhr.status + ")"), "error");
     }
     go.disabled = !signedIn;
@@ -100,27 +101,14 @@ async function api(url, options = {}) {
 function setAccount(user) {
   signedIn = Boolean(user);
   $("accountStatus").textContent = user ? `Signed in as ${user.email}` : "Sign in to upload files and view your history.";
-  $("authForm").hidden = signedIn;
+  $("loginLink").hidden = signedIn;
   $("logout").hidden = !signedIn;
   $("history").hidden = !signedIn;
   go.disabled = !signedIn || !selected;
   if (!signedIn) { $("historyList").replaceChildren(); result.textContent = ""; }
 }
-$("authForm").addEventListener("submit", async event => {
-  event.preventDefault();
-  const buttons = $("authForm").querySelectorAll("button");
-  buttons.forEach(button => button.disabled = true);
-  try {
-    const action = event.submitter?.id === "register" ? "register" : "login";
-    const user = await api(`/auth/${action}`, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({email: $("email").value, password: $("password").value})});
-    $("password").value = "";
-    setAccount(user);
-    await loadHistory();
-  } catch (error) { $("accountStatus").textContent = error.message; }
-  finally { buttons.forEach(button => button.disabled = false); }
-});
 $("logout").addEventListener("click", async () => {
-  try { await api("/auth/logout", {method: "POST"}); setAccount(null); }
+  try { await api("/auth/logout", {method: "POST"}); setAccount(null); window.location.replace("/login.html"); }
   catch (error) { say(error.message, "error"); }
 });
 let historyOffset = 0;

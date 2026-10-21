@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Transcript Service</title>
+        <link rel="stylesheet" href="/style.css">
+    </head>
+    <body class="loginPage">
+        <main>
+            <h1>Transcript Service</h1>
+
+            <form id="loginContainer" class="loginContainer">
+                <label for="email">Email</label>
+                <input type="email" id="email" placeholder="Enter Email" autocomplete="email" maxlength="254" required>
+
+                <label for="password">Password</label>
+
+                <div class="passwordWrapper">
+                    <input type="password" id="password" placeholder="Enter Password" autocomplete="current-password" minlength="12" maxlength="128" required>
+
+                    <button type="button" id="showPassword" aria-controls="password" aria-pressed="false">
+                        Show
+                    </button>
+                </div>
+
+                <button type="submit" id="loginButton" class="loginButton">
+                    Log in
+                </button>
+                <button type="submit" id="register" class="secondary">Create account</button>
+                <p class="sub">Passwords must be 12-128 characters.</p>
+                <p id="accountStatus" role="status" aria-live="polite"></p>
+            </form>
+        </main>
+    <script src="/login.js"></script>
+    </body>
+</html>

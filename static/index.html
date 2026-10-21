@@ -37,11 +37,7 @@
   <section class="card" id="account">
     <h2>Account</h2>
     <p id="accountStatus" role="status">Sign in to upload files and view your history.</p>
-    <form id="authForm">
-      <label>Email <input id="email" type="email" autocomplete="email" required maxlength="254"></label>
-      <label>Password (12-128 characters) <input id="password" type="password" autocomplete="current-password" minlength="12" maxlength="128" required></label>
-      <div class="row"><button type="submit">Log in</button><button type="submit" id="register" class="secondary">Create account</button></div>
-    </form>
+    <a id="loginLink" href="/login.html">Log in or create an account</a>
   </section>
   <section class="card" id="history" hidden>
     <h2>Your uploads</h2>

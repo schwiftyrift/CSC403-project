@@ -10,7 +10,10 @@ python -m venv .venv
 .\.venv\Scripts\python.exe -m uvicorn main:app --reload
 ```
 
-Open http://localhost:8000/ to create an account. API documentation: `/docs`.
+Open http://localhost:8000/ and choose "Log in or create an account".
+The separate `/login.html` page uses the login design from the team's `test` branch,
+connected to the account API. Successful login returns to the upload page;
+logout revokes the session and opens the login page. API documentation: `/docs`.
 Tests: `.\.venv\Scripts\python.exe -m pytest -q`.
 Docker: `docker compose up --build`; open http://localhost:8087/.
 
