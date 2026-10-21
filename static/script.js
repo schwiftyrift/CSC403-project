@@ -9,8 +9,8 @@ const MAX_MB = 500;
 
 const $ = (id) => document.getElementById(id);
 const drop = $("drop"), input = $("file"), chosen = $("chosen"), bar = $("bar");
-const go = $("go"), statusEl = $("status"), result = $("result");
-let selected = null;
+const go = $("go"), statusEl = $("status"), result = $("result"), transcribe = $("transcribe");
+let selected = null, jobId = null;
 
 function say(text, kind = "") { statusEl.textContent = text; statusEl.className = kind; }
 
@@ -39,7 +39,7 @@ function clearFile() {
   selected = null; input.value = "";
   chosen.classList.remove("show");
   go.disabled = true;
-  transcribe.classList.remove("show")
+  transcribe.classList.remove("show");
 }
 
 input.addEventListener("change", () => { if (input.files[0]) setFile(input.files[0]); });
@@ -64,8 +64,7 @@ go.addEventListener("click", () => {
     say("Demo mode: file chosen but not sent. Set API_URL in script.js to upload for real.", "ok");
     return;
   }
-  
-  const transcribe = document.getElementById("transcribe");
+
   const form = new FormData();
   form.append("file", selected);
   const xhr = new XMLHttpRequest();
@@ -79,6 +78,7 @@ go.addEventListener("click", () => {
     if (xhr.status >= 200 && xhr.status < 300) {
       say("Upload complete.", "ok");
       result.textContent = JSON.stringify(body, null, 2); result.className = "show";
+      jobId = body.job_id;
       transcribe.classList.add("show");
     } else {
       say("Error: " + (body.error || "request failed (" + xhr.status + ")"), "error");
@@ -89,19 +89,7 @@ go.addEventListener("click", () => {
   xhr.send(form);
 });
 
-const menuButton = document.getElementById("menuButton");
-const sideBar = document.getElementById("sidebar");
-
-menuButton.addEventListener("click", () => {
-  sideBar.classList.toggle("open");
-  menuButton.classList.toggle("open");
-
-  const isOpen = sideBar.classList.contains("open");
-
-  menuButton.setAttribute("aria-expanded", isOpen);
-});
-
 transcribe.addEventListener("click", ()=> {
-  window.location.href = "/transcribe.html";
+  window.location.href = "/transcribe.html?job=" + encodeURIComponent(jobId);
 });
 

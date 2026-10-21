@@ -1,4 +1,5 @@
 import json
+import mimetypes
 import os
 import time
 import uuid
@@ -6,7 +7,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, UploadFile
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 DATA_DIR = Path(os.environ.get("DATA_DIR", "./data"))
@@ -73,6 +74,42 @@ def get_job(job_id: str):
     if not meta_file.exists():
         return error(404, "job not found")
     return json.loads(meta_file.read_text())
+
+
+def find_job_file(job_id: str, suffix: str) -> Path | None:
+    """Returns data/uploads/<job_id><suffix> if job_id is a UUID and the file exists."""
+    try:
+        uuid.UUID(job_id)
+    except ValueError:
+        return None
+    path = DATA_DIR / "uploads" / f"{job_id}{suffix}"
+    return path if path.is_file() else None
+
+
+@app.get("/jobs/{job_id}/media", summary="Stream an upload's audio/video",
+         responses={404: {"description": "no such job"}})
+def get_media(job_id: str):
+    """Expects a job id. Returns the uploaded file inline, with range support so players can seek."""
+    for ext in ALLOWED:
+        if path := find_job_file(job_id, ext):
+            return FileResponse(path, media_type=mimetypes.guess_type(path.name)[0] or "application/octet-stream")
+    return error(404, "job not found")
+
+
+@app.get("/jobs/{job_id}/transcript", summary="Get an upload's timestamped transcript",
+         responses={404: {"description": "no such job, or not transcribed yet"}})
+def get_transcript(job_id: str):
+    """Expects a job id. Returns {"segments": [{"start", "end", "text"}]} with times in seconds.
+
+    The transcriber saves Whisper's result["segments"] to data/uploads/<job_id>.transcript.json.
+    """
+    if not find_job_file(job_id, ".json"):
+        return error(404, "job not found")
+    path = find_job_file(job_id, ".transcript.json")
+    if not path:
+        return error(404, "transcript not ready")
+    segments = json.loads(path.read_text())["segments"]
+    return {"segments": [{"start": s["start"], "end": s["end"], "text": s["text"].strip()} for s in segments]}
 
 
 # The upload page, served at /app/ (only if the static folder exists)

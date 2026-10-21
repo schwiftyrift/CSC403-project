@@ -376,3 +376,54 @@ button.loginButton {
         border-color 0.2s ease,
         box-shadow 0.2s ease;
 }
+
+/* synced transcript player */
+#player {
+    width: 100%;
+    margin: 0.5rem 0;
+}
+
+#transcriptStatus {
+    color: var(--muted);
+}
+
+#transcriptStatus.error {
+    color: var(--err);
+}
+
+.segments {
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.segment {
+    display: flex;
+    gap: 0.75rem;
+    margin: 0;
+    padding: 0.4rem 0.6rem;
+    border-left: 3px solid transparent;
+    border-radius: 4px;
+    line-height: 1.5;
+    cursor: pointer;
+}
+
+.segment:hover {
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.segment:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+}
+
+.segment.active {
+    border-left-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.segment .time {
+    flex: none;
+    min-width: 3.5em;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+}
