@@ -52,6 +52,7 @@ function setFile(file) {
 function clearFile() {
   selected = null; input.value = "";
   chosen.classList.remove("show");
+  transcribe.classList.remove("show")
   go.disabled = true;
 }
 
@@ -71,6 +72,7 @@ drop.addEventListener("drop", (e) => {
 
 go.addEventListener("click", () => {
   if (!selected || !signedIn) return;
+  const transcribe = document.getElementById("transcribe");
   const form = new FormData();
   form.append("file", selected);
   const xhr = new XMLHttpRequest();
@@ -83,6 +85,7 @@ go.addEventListener("click", () => {
     try { body = JSON.parse(xhr.responseText); } catch (_) {}
     if (xhr.status >= 200 && xhr.status < 300) {
       say("Upload complete.", "ok");
+        transcribe.classList.add("show");
       loadHistory().catch(e => say(e.message, "error"));
       result.textContent = `${body.filename} saved to your account.`; result.className = "show";
     } else {
@@ -151,4 +154,8 @@ setAccount(null);
 api("/jobs/limits").then(applyLimits).catch(() => {}); // without limits, the server still validates
 api("/auth/me").then(async user => { setAccount(user); await loadHistory(); }).catch(error => {
   if (signedIn) say(error.message, "error");
+});
+
+transcribe.addEventListener("click", ()=> {
+  window.location.href = "/transcribe.html";
 });
