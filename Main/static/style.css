@@ -343,6 +343,40 @@ button.loginButton {
     margin-top: 1rem;
 }
 
+/* =========================
+   TRANSCRIPT PAGE
+   ========================= */
+.transcribePage main{
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.transcribeContainer {
+    display: flex;
+    flex-direction: column;
+
+    width: 50rem;
+
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+
+
+    background: var(--bg);
+    color: var(--text);
+
+    font-size: 1rem;
+
+    outline: none;
+
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
 
 [hidden] { display: none !important; }
 .card { margin-top: 1rem; }
@@ -354,6 +388,22 @@ button.loginButton {
 .loginPage h1 { margin-bottom: 1rem; }
 #accountStatus { overflow-wrap: anywhere; }
 #accountStatus.error { color: var(--err); }
+
+/* "Log in or create an account" link: styled like the primary buttons */
+#loginLink {
+    display: inline-block;
+    padding: .6rem 1.1rem;
+    border-radius: 8px;
+    border: 1px solid var(--accent);
+    background: var(--accent);
+    color: #fff;
+    text-decoration: none;
+}
+@media (prefers-color-scheme: dark) {
+    #loginLink { color: #0b1020; }
+}
+#loginLink:hover { opacity: .9; }
+#loginLink:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .history-toolbar { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
 .view-toggle { display: flex; gap: .25rem; margin-right: auto; }
 .view-toggle button[aria-pressed="true"] { background: var(--accent); color: var(--card); }

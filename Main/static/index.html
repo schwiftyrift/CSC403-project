@@ -37,7 +37,7 @@
   <section class="card" id="account">
     <h2>Account</h2>
     <p id="accountStatus" role="status">Sign in to upload files and view your history.</p>
-    <a id="loginLink" href="/login.html">Log in or create an account</a>
+    <a id="loginLink" href="/login.html">Log in or Create an account</a>
   </section>
   <div class="card" id="upload">
     <label id="drop" for="file">
@@ -53,7 +53,10 @@
 
     <progress id="bar" max="100" value="0"></progress>
 
-    <div class="row"><button type="button" id="go" disabled>Upload</button></div>
+    <div class="row">
+      <button type="button" id="go" disabled>Upload</button>
+      <button type="button" id="transcribe">Transcribe</button>
+    </div>
     <div id="status" role="status" aria-live="polite"></div>
     <pre id="result"></pre>
   </div>

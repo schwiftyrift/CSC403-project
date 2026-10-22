@@ -35,6 +35,7 @@ function setFile(file) {
 function clearFile() {
   selected = null; input.value = "";
   chosen.classList.remove("show");
+  transcribe.classList.remove("show")
   go.disabled = true;
 }
 
@@ -54,6 +55,7 @@ drop.addEventListener("drop", (e) => {
 
 go.addEventListener("click", () => {
   if (!selected || !signedIn) return;
+  const transcribe = document.getElementById("transcribe");
   const form = new FormData();
   form.append("file", selected);
   const xhr = new XMLHttpRequest();
@@ -66,6 +68,7 @@ go.addEventListener("click", () => {
     try { body = JSON.parse(xhr.responseText); } catch (_) {}
     if (xhr.status >= 200 && xhr.status < 300) {
       say("Upload complete.", "ok");
+        transcribe.classList.add("show");
       result.textContent = `${body.filename} saved to your account. Manage it under Your uploads.`; result.className = "show";
     } else {
       if (xhr.status === 401) setAccount(null);
@@ -112,4 +115,8 @@ $("logout").addEventListener("click", async () => {
 setAccount(null);
 api("/auth/me").then(setAccount).catch(error => {
   if (signedIn) say(error.message, "error");
+});
+
+transcribe.addEventListener("click", ()=> {
+  window.location.href = "/transcribe.html";
 });
