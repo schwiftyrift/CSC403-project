@@ -48,6 +48,22 @@ registration, login/logout, private file storage, downloads, upload history, and
 There is no manual transcript entry or transcript API; a future transcription
 integration can attach generated text to uploaded jobs.
 
+## Email verification
+
+New accounts are emailed a link to `/verify.html?token=...`; opening it marks the address
+verified. Links expire after 24 hours and only verify the account's current email address.
+Signed-in users with an unverified email see a banner with a Resend button (at most one email
+a minute and five a day per account). Unverified accounts can still use the site, and
+`GET /auth/me` reports `email_verified`. Links are stored only as SHA-256 hashes
+(`email_tokens`); verified addresses are kept in `verified_emails`.
+
+Email is sent over SMTP using the settings below. Without `SMTP_HOST`, emails are written to
+`outbox.log` in the data folder instead, so development and tests never send real email. With
+`SMTP_HOST` set, `MAIL_FROM` is required and the app will not start without it. For Docker,
+copy `.env.example` to `.env` at the repo root and fill it in (`.env` is never committed).
+When running locally without Docker, set the variables in PowerShell first, for example
+`$env:SMTP_HOST = "smtp.resend.com"`.
+
 ## API
 
 | Method | Route | Purpose |
@@ -56,6 +72,8 @@ integration can attach generated text to uploaded jobs.
 | POST | /auth/login | Sign in with the same JSON fields |
 | GET | /auth/me | Current account |
 | POST | /auth/logout | Revoke current session |
+| POST | /auth/verify | Verify an email address from a link (`token` JSON; no login needed) |
+| POST | /auth/verification-email | Email a new verification link to the signed-in user |
 | POST | /jobs | Upload multipart `file` |
 | GET | /jobs | Current user's uploads |
 | GET | /jobs/{id} | Upload metadata |
@@ -88,8 +106,12 @@ Never accept an owner ID from the browser as proof of authorization.
 - `MAX_UPLOAD_MB`: maximum file size (default 500).
 - `COOKIE_SECURE=true`: required when serving over HTTPS in deployment.
 - `PUBLIC_ORIGIN`: exact public origin, e.g. `https://transcripts.example.com`,
-  for same-origin validation behind a reverse proxy. No trailing slash.
+  for same-origin validation behind a reverse proxy and for links in emails. No trailing slash.
+- `SMTP_HOST`, `SMTP_PORT` (default 587; 465 also works), `SMTP_USER`, `SMTP_PASSWORD`:
+  outgoing mail server. For Resend: `smtp.resend.com`, 587, `resend`, and an API key.
+- `MAIL_FROM`: sender, e.g. `Transcript Service <no-reply@mail.example.com>`, on a domain
+  your mail provider has verified.
 
 Before public deployment, configure HTTPS, secure cookies, and proxy-level login
-rate limiting. Email verification, password reset, MFA, account deletion, storage
+rate limiting. Password reset, MFA, account deletion, storage
 quotas, and automated transcription are not implemented in this initial foundation.

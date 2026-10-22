@@ -6,12 +6,13 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from service import auth, database, jobs
+from service import auth, database, jobs, mailer
 
 
 def create_app(data_dir=None):
     @asynccontextmanager
     async def lifespan(app):
+        mailer.check_settings()
         database.initialize(app.state.data_dir)
         yield
 
@@ -25,7 +26,8 @@ def create_app(data_dir=None):
         # Browser writes must come from this origin; API clients may omit Origin.
         if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
             origin = request.headers.get("origin")
-            expected = os.environ.get("PUBLIC_ORIGIN", str(request.base_url).rstrip("/"))
+            # "or": docker-compose passes an empty PUBLIC_ORIGIN when it is not configured.
+            expected = (os.environ.get("PUBLIC_ORIGIN") or str(request.base_url)).rstrip("/")
             if (origin and origin != expected) or request.headers.get("sec-fetch-site") == "cross-site":
                 return JSONResponse(status_code=403, content={"error": "cross-origin request rejected"})
         response = await call_next(request)

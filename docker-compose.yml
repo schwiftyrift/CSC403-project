@@ -12,6 +12,13 @@ services:
       - uploads:/data    # uploads + app.db survive restarts and rebuilds
     environment:
       MAX_UPLOAD_MB: "500"
+      # Email and public address come from a .env file next to this one (see .env.example).
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-}
 
   worker:
     build:

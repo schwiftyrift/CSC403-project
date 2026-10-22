@@ -415,3 +415,9 @@ button.danger { background: transparent; border-color: var(--err); color: var(--
 #historyList.grid-view article { display: flex; flex-direction: column; margin-top: 0; padding: 1rem; border: 1px solid var(--line); border-radius: 10px; }
 #historyList.grid-view .actions { margin-top: auto; }
 #emptyHistory { color: var(--muted); }
+#verifyBanner p { margin: 0 0 .75rem; overflow-wrap: anywhere; }
+#verifyBanner p:last-child { margin: .75rem 0 0; }
+#verifyBanner p:empty { display: none; }
+#verifyBanner .ok { color: var(--ok); }
+#verifyBanner .error { color: var(--err); }
+#continueLink { color: var(--accent); }

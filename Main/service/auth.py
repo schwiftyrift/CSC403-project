@@ -8,6 +8,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field, field_validator
+from . import verification
 from .database import connect
 
 router = APIRouter(prefix="/auth", tags=["accounts"])
@@ -26,6 +27,9 @@ class Credentials(BaseModel):
         if not separator or not local or "." not in domain or "@" in domain or any(c.isspace() for c in value):
             raise ValueError("invalid email")
         return value
+
+class VerificationLink(BaseModel):
+    token: str = Field(min_length=1, max_length=128)
 
 def hash_password(password, salt=None):
     salt = salt or secrets.token_hex(16)
@@ -72,21 +76,38 @@ def register(body: Credentials, request: Request, response: Response):
     except sqlite3.IntegrityError:
         raise HTTPException(409, "email already registered")
     start_session(request, response, user["id"])
-    return user
+    try:
+        verification.send_link(request, user)
+        sent = True
+    except HTTPException:
+        sent = False  # the account still works; the user can resend from the banner
+    return {**user, "email_verified": False, "verification_sent": sent}
 
 @router.post("/login")
 def login(body: Credentials, request: Request, response: Response):
     with connect(request.app.state.data_dir) as db:
         row = db.execute("SELECT * FROM users WHERE email=?", (body.email,)).fetchone()
+        verified = row is not None and verification.is_verified(db, row["id"])
     valid = verify_password(body.password, row["password_hash"] if row else DUMMY_HASH)
     if not valid or row is None:
         raise HTTPException(401, "invalid email or password")
     start_session(request, response, row["id"])
-    return {key: row[key] for key in ("id", "email", "created_at")}
+    return {**{key: row[key] for key in ("id", "email", "created_at")}, "email_verified": verified}
 
 @router.get("/me")
-def me(user=Depends(current_user)):
-    return user
+def me(request: Request, user=Depends(current_user)):
+    with connect(request.app.state.data_dir) as db:
+        return {**user, "email_verified": verification.is_verified(db, user["id"])}
+
+@router.post("/verify")
+def verify_email(body: VerificationLink, request: Request):
+    # No login needed: the link may be opened on a different device than the one signed in.
+    return {"status": verification.verify(request.app.state.data_dir, body.token)}
+
+@router.post("/verification-email")
+def resend_verification(request: Request, user=Depends(current_user)):
+    verification.send_link(request, user)
+    return {"sent": True}
 
 @router.post("/logout", status_code=204)
 def logout(request: Request, response: Response):
