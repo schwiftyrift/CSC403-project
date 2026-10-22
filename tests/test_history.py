@@ -86,3 +86,8 @@ def test_deleted_text_not_left_in_database_file(client):
     add_transcript(client, job)
     client.delete(f"/jobs/{job}")
     assert b"secret words" not in (client.app.state.data_dir / "accounts.sqlite3").read_bytes()
+
+def test_pages_are_revalidated_after_updates(client):
+    for path in ("/", "/history.html", "/login.html", "/script.js", "/history.js", "/style.css"):
+        assert client.get(path).headers["cache-control"] == "no-cache"
+    assert client.get("/auth/me").headers["cache-control"] == "no-store"
