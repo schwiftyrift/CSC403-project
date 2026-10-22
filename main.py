@@ -13,6 +13,7 @@ def create_app(data_dir=None):
     @asynccontextmanager
     async def lifespan(app):
         database.initialize(app.state.data_dir)
+        jobs.fingerprint_existing_uploads(app.state.data_dir)
         yield
 
     app = FastAPI(title="Transcript Service", version="0.2.0", lifespan=lifespan)

@@ -47,6 +47,13 @@ nothing else needs to change. The upload page reads them from
 `GET /jobs/limits`, so the browser and server always agree. Rejected files get a message
 explaining why and how to fix it. The server re-checks every upload.
 
+Duplicate uploads are blocked by content, not name: the server takes a SHA-256 hash while
+receiving the file and rejects it (409) if the same account already has a file with that hash
+stored on the server, even under another name. A record whose file is missing from disk does
+not block re-uploading it. Different files with the same name are allowed, and other accounts
+are unaffected. Hashes live in the `upload_hashes` table and are removed with their upload.
+Uploads stored before this check existed are hashed automatically at startup.
+
 ## API
 
 | Method | Route | Purpose |

@@ -20,7 +20,12 @@ CREATE TABLE IF NOT EXISTS transcripts (
  id TEXT PRIMARY KEY, job_id TEXT NOT NULL REFERENCES jobs(job_id) ON DELETE CASCADE,
  text TEXT NOT NULL, created_at REAL NOT NULL
 );
+CREATE TABLE IF NOT EXISTS upload_hashes (
+ job_id TEXT PRIMARY KEY REFERENCES jobs(job_id) ON DELETE CASCADE,
+ user_id TEXT NOT NULL, sha256 TEXT NOT NULL
+);
 CREATE INDEX IF NOT EXISTS jobs_owner ON jobs(user_id, uploaded_at);
+CREATE INDEX IF NOT EXISTS upload_hashes_owner ON upload_hashes(user_id, sha256);
 CREATE INDEX IF NOT EXISTS transcripts_job ON transcripts(job_id, created_at);
 CREATE INDEX IF NOT EXISTS sessions_owner ON sessions(user_id);
 """

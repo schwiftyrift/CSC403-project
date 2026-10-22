@@ -1,4 +1,5 @@
 """User-owned media uploads and downloads."""
+import hashlib
 import time
 import uuid
 from pathlib import Path
@@ -21,6 +22,19 @@ def owned_job(db, job_id, user_id):
         raise HTTPException(404, "job not found")
     return row
 
+def fingerprint_existing_uploads(data_dir):
+    """Hash uploads stored before duplicate detection existed, or by code without it."""
+    with connect(data_dir) as db:
+        missing = db.execute("SELECT j.job_id, j.user_id, j.storage_name FROM jobs j LEFT JOIN upload_hashes h ON h.job_id=j.job_id WHERE h.job_id IS NULL").fetchall()
+        for row in missing:
+            path = data_dir / "uploads" / row["storage_name"]
+            if path.is_file():
+                digest = hashlib.sha256()
+                with path.open("rb") as stored:
+                    while chunk := stored.read(1024 * 1024):
+                        digest.update(chunk)
+                db.execute("INSERT INTO upload_hashes VALUES (?, ?, ?)", (row["job_id"], row["user_id"], digest.hexdigest()))
+
 def checked_extension(filename):
     ext = Path(filename or "").suffix.lower()
     if not ext:
@@ -38,6 +52,7 @@ async def create_job(request: Request, file: UploadFile, user=Depends(current_us
     storage_name = f"{job_id}{ext}"
     destination = uploads / storage_name
     size = 0
+    digest = hashlib.sha256()
     try:
         with destination.open("xb") as out:
             while chunk := await file.read(1024 * 1024):
@@ -46,11 +61,22 @@ async def create_job(request: Request, file: UploadFile, user=Depends(current_us
                     limit_mb = request.app.state.max_bytes / 1024 ** 2
                     raise HTTPException(413, f"The file is larger than the {limit_mb:g} MB limit. Trim or compress the recording and try again.")
                 out.write(chunk)
+                digest.update(chunk)
         if size == 0:
             raise HTTPException(400, "The file is empty. Choose a file that contains audio or video.")
         meta = dict(job_id=job_id, filename=(file.filename or "upload").replace("\\", "/").split("/")[-1], size_bytes=size, status="stored", uploaded_at=time.time())
+        sha256 = digest.hexdigest()
         with connect(request.app.state.data_dir) as db:
-            db.execute("INSERT INTO jobs VALUES (?, ?, ?, ?, ?, ?, ?)", (job_id, user["id"], meta["filename"], storage_name, size, meta["status"], meta["uploaded_at"]))
+            # Lock before checking so two simultaneous uploads of the same file cannot both pass.
+            db.execute("BEGIN IMMEDIATE")
+            matches = db.execute("SELECT j.filename, j.storage_name FROM upload_hashes h JOIN jobs j ON j.job_id=h.job_id WHERE h.user_id=? AND h.sha256=?", (user["id"], sha256)).fetchall()
+            # Only a copy still on disk counts, so a record whose file was lost cannot block re-uploading it.
+            duplicate = next((match for match in matches if (uploads / match["storage_name"]).is_file()), None)
+            if duplicate:
+                raise HTTPException(409, f'You already uploaded this file as "{duplicate["filename"]}". Delete that upload first if you want to replace it.')
+            db.execute("INSERT INTO jobs (job_id, user_id, filename, storage_name, size_bytes, status, uploaded_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                       (job_id, user["id"], meta["filename"], storage_name, size, meta["status"], meta["uploaded_at"]))
+            db.execute("INSERT INTO upload_hashes VALUES (?, ?, ?)", (job_id, user["id"], sha256))
         return meta
     except BaseException:
         destination.unlink(missing_ok=True)

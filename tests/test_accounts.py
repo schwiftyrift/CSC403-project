@@ -17,8 +17,9 @@ def register(client, email="one@example.com"):
     assert response.status_code == 201
     return response.json()
 
-def upload(client):
-    response = client.post("/jobs", files={"file": ("audio.wav", b"audio", "audio/wav")})
+def upload(client, content=b"audio"):
+    # Pass different content for each upload by the same user, or it is rejected as a duplicate.
+    response = client.post("/jobs", files={"file": ("audio.wav", content, "audio/wav")})
     assert response.status_code == 201
     return response.json()["job_id"]
 
@@ -105,3 +106,47 @@ def test_upload_limits_and_messages(client, tmp_path, monkeypatch):
     monkeypatch.setenv("MAX_UPLOAD_MB", "1")
     with TestClient(create_app(tmp_path / "other")) as other:
         assert other.get("/jobs/limits").json()["max_bytes"] == 1024 * 1024
+
+def stored_files(client):
+    return list((client.app.state.data_dir / "uploads").iterdir())
+
+def test_duplicate_uploads_blocked_by_content(client):
+    register(client)
+    job = upload(client)
+    response = client.post("/jobs", files={"file": ("renamed copy.mp3", b"audio")})
+    assert response.status_code == 409 and 'as "audio.wav"' in response.json()["error"]
+    assert len(client.get("/jobs").json()) == 1 and len(stored_files(client)) == 1
+    assert client.post("/jobs", files={"file": ("audio.wav", b"different audio")}).status_code == 201
+    client.post("/auth/logout")
+    register(client, "two@example.com")
+    assert client.post("/jobs", files={"file": ("audio.wav", b"audio")}).status_code == 201
+    with connect(client.app.state.data_dir) as db:
+        db.execute("DELETE FROM jobs WHERE job_id=?", (job,))
+        assert db.execute("SELECT COUNT(*) FROM upload_hashes WHERE job_id=?", (job,)).fetchone()[0] == 0
+    client.post("/auth/logout")
+    client.post("/auth/login", json={"email": "one@example.com", "password": PASSWORD})
+    assert client.post("/jobs", files={"file": ("audio.wav", b"audio")}).status_code == 201
+
+def test_lost_file_does_not_block_reupload(client):
+    register(client)
+    job = upload(client)
+    (client.app.state.data_dir / "uploads" / f"{job}.wav").unlink()
+    assert client.get(f"/jobs/{job}/file").status_code == 404
+    assert client.post("/jobs", files={"file": ("restored.wav", b"audio")}).status_code == 201
+    assert client.post("/jobs", files={"file": ("again.wav", b"audio")}).status_code == 409
+
+def test_existing_uploads_fingerprinted_at_startup(tmp_path):
+    with TestClient(create_app(tmp_path)) as first:
+        register(first)
+        upload(first)
+        cookie = first.cookies.get("transcript_session")
+        with connect(tmp_path) as db:
+            db.execute("DELETE FROM upload_hashes")  # as if uploaded before duplicate detection
+        assert first.post("/jobs", files={"file": ("copy.wav", b"audio")}).status_code == 201
+        with connect(tmp_path) as db:
+            db.execute("DELETE FROM upload_hashes")
+    with TestClient(create_app(tmp_path)) as second:
+        second.cookies.set("transcript_session", cookie)
+        assert second.post("/jobs", files={"file": ("third.wav", b"audio")}).status_code == 409
+        with connect(tmp_path) as db:
+            assert db.execute("SELECT COUNT(*) FROM upload_hashes").fetchone()[0] == 2
