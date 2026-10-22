@@ -354,3 +354,14 @@ button.loginButton {
 .loginPage h1 { margin-bottom: 1rem; }
 #accountStatus { overflow-wrap: anywhere; }
 #accountStatus.error { color: var(--err); }
+.history-toolbar { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.view-toggle { display: flex; gap: .25rem; margin-right: auto; }
+.view-toggle button[aria-pressed="true"] { background: var(--accent); color: var(--card); }
+button.danger { background: transparent; border-color: var(--err); color: var(--err); }
+#historyList h3 { margin: 0 0 .25rem; font-size: 1rem; }
+#historyList p { margin: 0 0 .5rem; color: var(--muted); font-size: .9rem; }
+#historyList .actions { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; }
+#historyList.grid-view { display: grid; grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); gap: 1rem; margin-top: 1rem; }
+#historyList.grid-view article { display: flex; flex-direction: column; margin-top: 0; padding: 1rem; border: 1px solid var(--line); border-radius: 10px; }
+#historyList.grid-view .actions { margin-top: auto; }
+#emptyHistory { color: var(--muted); }

@@ -65,3 +65,34 @@ def download(job_id: uuid.UUID, request: Request, user=Depends(current_user)):
     if not path.is_file():
         raise HTTPException(404, "file not found")
     return FileResponse(path, filename=row["filename"], media_type="application/octet-stream")
+
+def remove_files(uploads, job_id):
+    """Delete the upload and any sidecar files (e.g. <job_id>.transcript.json)."""
+    for path in uploads.glob(f"{job_id}.*"):
+        path.unlink(missing_ok=True)
+
+@router.delete("/jobs/{job_id}", status_code=204)
+def delete_job(job_id: uuid.UUID, request: Request, user=Depends(current_user)):
+    with connect(request.app.state.data_dir) as db:
+        owned_job(db, job_id, user["id"])
+        db.execute("DELETE FROM jobs WHERE job_id=? AND user_id=?", (str(job_id), user["id"]))
+        try:
+            remove_files(request.app.state.data_dir / "uploads", job_id)
+        except OSError:
+            # Raising inside the transaction rolls back, so the job stays listed and can be retried.
+            raise HTTPException(409, "file is in use; try again")
+
+@router.delete("/jobs", status_code=204)
+def delete_all_jobs(request: Request, user=Depends(current_user)):
+    uploads = request.app.state.data_dir / "uploads"
+    failed = 0
+    with connect(request.app.state.data_dir) as db:
+        for row in db.execute("SELECT job_id FROM jobs WHERE user_id=?", (user["id"],)).fetchall():
+            try:
+                remove_files(uploads, row["job_id"])
+            except OSError:
+                failed += 1
+                continue
+            db.execute("DELETE FROM jobs WHERE job_id=? AND user_id=?", (row["job_id"], user["id"]))
+    if failed:
+        raise HTTPException(409, f"{failed} file(s) are in use and were not deleted; try again")

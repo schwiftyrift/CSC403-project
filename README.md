@@ -30,12 +30,18 @@ Uploaded bytes live in `DATA_DIR/uploads`. The default DATA_DIR is `./data`;
 Docker uses `/data` in the existing persistent volume. Back up the database and
 uploads together while the service is stopped.
 
+Deleting an upload removes its database row, its transcripts (by cascade), and every
+`uploads/<job_id>.*` file. SQLite `secure_delete` is enabled so deleted rows are
+overwritten in the database file. If a file is in use (for example, being downloaded on
+Windows), the API returns 409 and keeps the record so the user can retry. Backups made
+before a deletion still contain the deleted data.
+
 All job routes require login and check ownership, including downloads. Another account receives 404 when requesting a private job.
 Existing JSON upload records remain on disk but are not assigned to any account;
 an explicit owner mapping is required before migrating old uploads.
 
 Automatic transcription is not implemented yet. The current demonstration covers
-registration, login/logout, private file storage, downloads, and upload history.
+registration, login/logout, private file storage, downloads, upload history, and deletion.
 There is no manual transcript entry or transcript API; a future transcription
 integration can attach generated text to uploaded jobs.
 
@@ -51,9 +57,12 @@ integration can attach generated text to uploaded jobs.
 | GET | /jobs | Current user's uploads |
 | GET | /jobs/{id} | Upload metadata |
 | GET | /jobs/{id}/file | Download original file |
+| DELETE | /jobs/{id} | Delete one upload, its stored file, and its transcript |
+| DELETE | /jobs | Delete all of the current user's uploads and transcripts |
 
 Lists accept `limit` (1-100, default 50) and `offset` (default 0).
-The UI pages through upload history.
+The history page (`/history.html`) pages
+through uploads, offers list and grid layouts, and deletes one upload or all of them.
 Use a cookie jar with API clients. Browser writes must be from the same origin.
 
 ## Adding account features
@@ -61,7 +70,7 @@ Use a cookie jar with API clients. Browser writes must be from the same origin.
 - `service/database.py`: connection management, foreign keys, schema version 1.
   Add versioned migrations here when changing an existing schema.
 - `service/auth.py`: accounts, password hashing, reusable `current_user` dependency.
-- `service/jobs.py`: owned uploads, downloads, and upload history.
+- `service/jobs.py`: owned uploads, downloads, upload history, and deletion.
 - `main.py`: app factory, configuration, shared middleware, router registration.
 
 For a feature such as preferences or notes, add a table with
