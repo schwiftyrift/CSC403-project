@@ -9,7 +9,10 @@ from .auth import current_user
 from .database import connect
 
 router = APIRouter(tags=["jobs"])
-ALLOWED = {".mp3", ".wav", ".m4a", ".mp4", ".mov"}
+# Single source of truth for upload limits; the UI reads these from GET /jobs/limits.
+ALLOWED = (".mp3", ".wav", ".m4a", ".mp4", ".mov")
+DEFAULT_MAX_MB = 500  # the MAX_UPLOAD_MB environment variable overrides this
+FORMATS = ", ".join(ALLOWED)
 PUBLIC_COLUMNS = "job_id, filename, size_bytes, status, uploaded_at"
 
 def owned_job(db, job_id, user_id):
@@ -18,11 +21,17 @@ def owned_job(db, job_id, user_id):
         raise HTTPException(404, "job not found")
     return row
 
+def checked_extension(filename):
+    ext = Path(filename or "").suffix.lower()
+    if not ext:
+        raise HTTPException(400, f"The file has no extension. Rename it to end in one of: {FORMATS}.")
+    if ext not in ALLOWED:
+        raise HTTPException(400, f"{ext} files are not supported. Upload one of: {FORMATS}. Try converting the file to {ALLOWED[0]}.")
+    return ext
+
 @router.post("/jobs", status_code=201)
 async def create_job(request: Request, file: UploadFile, user=Depends(current_user)):
-    ext = Path(file.filename or "").suffix.lower()
-    if ext not in ALLOWED:
-        raise HTTPException(400, "unsupported file type")
+    ext = checked_extension(file.filename)
     uploads = request.app.state.data_dir / "uploads"
     uploads.mkdir(parents=True, exist_ok=True)
     job_id = str(uuid.uuid4())
@@ -34,8 +43,11 @@ async def create_job(request: Request, file: UploadFile, user=Depends(current_us
             while chunk := await file.read(1024 * 1024):
                 size += len(chunk)
                 if size > request.app.state.max_bytes:
-                    raise HTTPException(413, "file too large")
+                    limit_mb = request.app.state.max_bytes / 1024 ** 2
+                    raise HTTPException(413, f"The file is larger than the {limit_mb:g} MB limit. Trim or compress the recording and try again.")
                 out.write(chunk)
+        if size == 0:
+            raise HTTPException(400, "The file is empty. Choose a file that contains audio or video.")
         meta = dict(job_id=job_id, filename=(file.filename or "upload").replace("\\", "/").split("/")[-1], size_bytes=size, status="stored", uploaded_at=time.time())
         with connect(request.app.state.data_dir) as db:
             db.execute("INSERT INTO jobs VALUES (?, ?, ?, ?, ?, ?, ?)", (job_id, user["id"], meta["filename"], storage_name, size, meta["status"], meta["uploaded_at"]))
@@ -45,6 +57,11 @@ async def create_job(request: Request, file: UploadFile, user=Depends(current_us
         raise
     finally:
         await file.close()
+
+# Registered before /jobs/{job_id} so "limits" is not parsed as a job ID.
+@router.get("/jobs/limits")
+def upload_limits(request: Request):
+    return {"extensions": list(ALLOWED), "max_bytes": request.app.state.max_bytes}
 
 @router.get("/jobs")
 def list_jobs(request: Request, limit: int = Query(50, ge=1, le=100), offset: int = Query(0, ge=0), user=Depends(current_user)):

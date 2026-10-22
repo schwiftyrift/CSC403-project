@@ -17,7 +17,7 @@ def create_app(data_dir=None):
 
     app = FastAPI(title="Transcript Service", version="0.2.0", lifespan=lifespan)
     app.state.data_dir = Path(data_dir or os.environ.get("DATA_DIR", "./data"))
-    app.state.max_bytes = int(os.environ.get("MAX_UPLOAD_MB", "500")) * 1024 * 1024
+    app.state.max_bytes = int(os.environ.get("MAX_UPLOAD_MB", jobs.DEFAULT_MAX_MB)) * 1024 * 1024
     app.state.cookie_secure = os.environ.get("COOKIE_SECURE", "false").lower() == "true"
 
     @app.middleware("http")

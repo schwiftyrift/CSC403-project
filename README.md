@@ -30,7 +30,7 @@ Uploaded bytes live in `DATA_DIR/uploads`. The default DATA_DIR is `./data`;
 Docker uses `/data` in the existing persistent volume. Back up the database and
 uploads together while the service is stopped.
 
-All job routes require login and check ownership, including downloads. Another account receives 404 when requesting a private job.
+All job routes except `/jobs/limits` require login and check ownership, including downloads. Another account receives 404 when requesting a private job.
 Existing JSON upload records remain on disk but are not assigned to any account;
 an explicit owner mapping is required before migrating old uploads.
 
@@ -38,6 +38,14 @@ Automatic transcription is not implemented yet. The current demonstration covers
 registration, login/logout, private file storage, downloads, and upload history.
 There is no manual transcript entry or transcript API; a future transcription
 integration can attach generated text to uploaded jobs.
+
+## Upload limits
+
+Allowed: .mp3, .wav, .m4a, .mp4, .mov. Max size: 500 MB (set `MAX_UPLOAD_MB` to change).
+To change them, edit `ALLOWED` and `DEFAULT_MAX_MB` at the top of `service/jobs.py`;
+nothing else needs to change. The upload page reads them from
+`GET /jobs/limits`, so the browser and server always agree. Rejected files get a message
+explaining why and how to fix it. The server re-checks every upload.
 
 ## API
 
@@ -48,6 +56,7 @@ integration can attach generated text to uploaded jobs.
 | GET | /auth/me | Current account |
 | POST | /auth/logout | Revoke current session |
 | POST | /jobs | Upload multipart `file` |
+| GET | /jobs/limits | Allowed extensions and max upload size (no login needed) |
 | GET | /jobs | Current user's uploads |
 | GET | /jobs/{id} | Upload metadata |
 | GET | /jobs/{id}/file | Download original file |

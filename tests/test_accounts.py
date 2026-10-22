@@ -3,6 +3,7 @@ import pytest
 from fastapi.testclient import TestClient
 from main import create_app
 from service.database import connect
+from service.jobs import ALLOWED, DEFAULT_MAX_MB
 
 PASSWORD = "a-long-test-password"
 
@@ -85,3 +86,22 @@ def test_secure_cookie(tmp_path, monkeypatch):
         cookie = response.headers["set-cookie"].lower()
         assert "secure" in cookie and "httponly" in cookie and "samesite=strict" in cookie
         assert client.get("/auth/me").status_code == 200
+
+def test_upload_limits_and_messages(client, tmp_path, monkeypatch):
+    assert client.get("/jobs/limits").json() == {"extensions": list(ALLOWED), "max_bytes": DEFAULT_MAX_MB * 1024 * 1024}
+    register(client)
+    for name, content, status, message in [
+        ("a.exe", b"a", 400, ".exe files are not supported"),
+        ("noextension", b"a", 400, "has no extension"),
+        ("empty.wav", b"", 400, "is empty"),
+    ]:
+        response = client.post("/jobs", files={"file": (name, content)})
+        assert response.status_code == status and message in response.json()["error"]
+    assert client.post("/jobs", files={"file": ("LOUD.WAV", b"a")}).status_code == 201
+    client.app.state.max_bytes = 2
+    response = client.post("/jobs", files={"file": ("a.wav", b"abc")})
+    assert response.status_code == 413 and "Trim or compress" in response.json()["error"]
+    assert len(list((client.app.state.data_dir / "uploads").iterdir())) == 1
+    monkeypatch.setenv("MAX_UPLOAD_MB", "1")
+    with TestClient(create_app(tmp_path / "other")) as other:
+        assert other.get("/jobs/limits").json()["max_bytes"] == 1024 * 1024
