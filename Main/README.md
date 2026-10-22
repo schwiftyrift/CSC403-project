@@ -64,6 +64,19 @@ copy `.env.example` to `.env` at the repo root and fill it in (`.env` is never c
 When running locally without Docker, set the variables in PowerShell first, for example
 `$env:SMTP_HOST = "smtp.resend.com"`.
 
+## Passwords
+
+The login page links to "Forgot password?" (`/forgot.html`): users enter their email and, if an
+account exists, receive a link to `/reset.html?token=...`. The reply is the same whether or not
+the address has an account, and the email is sent after the response so timing does not reveal
+it either. Reset links work once, expire after one hour, and are stored only as SHA-256 hashes
+(`password_resets`). Using one sets the new password, signs the account out everywhere, signs this
+browser in, marks the email verified, and emails a "password changed" notice.
+
+The Settings page (`/settings.html`) lets signed-in users change their password with their current
+one (other devices are signed out) or email themselves a reset link. Reset emails are limited to
+one a minute and five a day per account; failed sends do not count.
+
 ## API
 
 | Method | Route | Purpose |
@@ -74,6 +87,10 @@ When running locally without Docker, set the variables in PowerShell first, for 
 | POST | /auth/logout | Revoke current session |
 | POST | /auth/verify | Verify an email address from a link (`token` JSON; no login needed) |
 | POST | /auth/verification-email | Email a new verification link to the signed-in user |
+| POST | /auth/password-reset-request | Email a reset link if the account exists (`email` JSON; always 202) |
+| POST | /auth/password-reset | Set a new password from a link (`token`, `password` JSON); signs in |
+| POST | /auth/password | Change password when signed in (`current_password`, `new_password` JSON) |
+| POST | /auth/password-reset-email | Email a reset link to the signed-in user |
 | POST | /jobs | Upload multipart `file` |
 | GET | /jobs | Current user's uploads |
 | GET | /jobs/{id} | Upload metadata |
@@ -113,5 +130,5 @@ Never accept an owner ID from the browser as proof of authorization.
   your mail provider has verified.
 
 Before public deployment, configure HTTPS, secure cookies, and proxy-level login
-rate limiting. Password reset, MFA, account deletion, storage
+rate limiting. MFA, account deletion, storage
 quotas, and automated transcription are not implemented in this initial foundation.

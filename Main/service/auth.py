@@ -6,14 +6,21 @@ import sqlite3
 import time
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field, field_validator
-from . import verification
+from . import passwords, verification
 from .database import connect
 
 router = APIRouter(prefix="/auth", tags=["accounts"])
 COOKIE = "transcript_session"
 SESSION_SECONDS = 60 * 60 * 24 * 7
+
+def normalize_email(value):
+    value = value.strip().lower()
+    local, separator, domain = value.partition("@")
+    if not separator or not local or "." not in domain or "@" in domain or any(c.isspace() for c in value):
+        raise ValueError("invalid email")
+    return value
 
 class Credentials(BaseModel):
     email: str = Field(max_length=254)
@@ -22,11 +29,23 @@ class Credentials(BaseModel):
     @field_validator("email")
     @classmethod
     def valid_email(cls, value):
-        value = value.strip().lower()
-        local, separator, domain = value.partition("@")
-        if not separator or not local or "." not in domain or "@" in domain or any(c.isspace() for c in value):
-            raise ValueError("invalid email")
-        return value
+        return normalize_email(value)
+
+class ResetRequest(BaseModel):
+    email: str = Field(max_length=254)
+
+    @field_validator("email")
+    @classmethod
+    def valid_email(cls, value):
+        return normalize_email(value)
+
+class NewPassword(BaseModel):
+    token: str = Field(min_length=1, max_length=128)
+    password: str = Field(min_length=12, max_length=128)
+
+class PasswordChange(BaseModel):
+    current_password: str = Field(min_length=1, max_length=128)
+    new_password: str = Field(min_length=12, max_length=128)
 
 class VerificationLink(BaseModel):
     token: str = Field(min_length=1, max_length=128)
@@ -107,6 +126,38 @@ def verify_email(body: VerificationLink, request: Request):
 @router.post("/verification-email")
 def resend_verification(request: Request, user=Depends(current_user)):
     verification.send_link(request, user)
+    return {"sent": True}
+
+@router.post("/password-reset-request", status_code=202)
+def request_password_reset(body: ResetRequest, request: Request, tasks: BackgroundTasks):
+    # The email is sent after the response, so known and unknown addresses look and take the same.
+    tasks.add_task(passwords.send_reset_link_quietly, request.app.state.data_dir, verification.public_origin(request), body.email)
+    return {"message": "If an account exists for that address, we've sent a password reset link. Check your inbox and spam folder."}
+
+@router.post("/password-reset")
+def reset_password(body: NewPassword, request: Request, response: Response, tasks: BackgroundTasks):
+    user = passwords.use_reset_link(request.app.state.data_dir, body.token, hash_password(body.password))
+    start_session(request, response, user["id"])
+    tasks.add_task(passwords.notify_changed, request.app.state.data_dir, verification.public_origin(request), user["email"])
+    return {**user, "email_verified": True}
+
+@router.post("/password")
+def change_password(body: PasswordChange, request: Request, tasks: BackgroundTasks, user=Depends(current_user)):
+    with connect(request.app.state.data_dir) as db:
+        stored = db.execute("SELECT password_hash FROM users WHERE id=?", (user["id"],)).fetchone()["password_hash"]
+    if not verify_password(body.current_password, stored):
+        # 400, not 401: the pages treat 401 as "signed out".
+        raise HTTPException(400, "Your current password is incorrect.")
+    new_hash = hash_password(body.new_password)
+    with connect(request.app.state.data_dir) as db:
+        db.execute("UPDATE users SET password_hash=? WHERE id=?", (new_hash, user["id"]))
+        passwords.forget_password(db, user["id"], keep_session=token_hash(request.cookies[COOKIE]))
+    tasks.add_task(passwords.notify_changed, request.app.state.data_dir, verification.public_origin(request), user["email"])
+    return {"changed": True}
+
+@router.post("/password-reset-email")
+def email_reset_link(request: Request, user=Depends(current_user)):
+    passwords.send_reset_link(request.app.state.data_dir, verification.public_origin(request), user)
     return {"sent": True}
 
 @router.post("/logout", status_code=204)

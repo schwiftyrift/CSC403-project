@@ -421,3 +421,10 @@ button.danger { background: transparent; border-color: var(--err); color: var(--
 #verifyBanner .ok { color: var(--ok); }
 #verifyBanner .error { color: var(--err); }
 #continueLink { color: var(--accent); }
+#forgotLink, .formLink { display: block; width: fit-content; margin-top: .75rem; color: var(--accent); }
+.loginContainer h2 { margin: 0 0 .5rem; }
+#accountStatus.ok, #passwordStatus.ok, #resetStatus.ok { color: var(--ok); }
+#passwordStatus.error, #resetStatus.error { color: var(--err); }
+#passwordStatus, #resetStatus { margin: .75rem 0 0; overflow-wrap: anywhere; }
+#passwordStatus:empty, #resetStatus:empty { display: none; }
+.settingsForm button[type="submit"] { margin-top: .25rem; }

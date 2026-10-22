@@ -38,6 +38,10 @@ def is_verified(db, user_id):
     return db.execute("SELECT 1 FROM verified_emails v JOIN users u ON u.id=v.user_id WHERE v.user_id=? AND v.email=u.email",
                       (user_id,)).fetchone() is not None
 
+def mark_verified(db, user_id, email):
+    db.execute("INSERT INTO verified_emails VALUES (?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET email=excluded.email, verified_at=excluded.verified_at",
+               (user_id, email, time.time()))
+
 def send_link(request, user):
     """Email a new verification link. Raises 409 if already verified, 429 if too soon or too many, 503 if sending fails."""
     data_dir = request.app.state.data_dir
@@ -74,6 +78,5 @@ def verify(data_dir, token):
             return "already_verified"
         if link["expires_at"] < time.time():
             raise HTTPException(400, "This link has expired. Log in and use Resend to get a new one.")
-        db.execute("INSERT INTO verified_emails VALUES (?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET email=excluded.email, verified_at=excluded.verified_at",
-                   (link["user_id"], link["email"], time.time()))
+        mark_verified(db, link["user_id"], link["email"])
         return "verified"

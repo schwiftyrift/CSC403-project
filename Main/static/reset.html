@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="referrer" content="no-referrer">
+        <title>Reset password - Transcript Service</title>
+        <link rel="stylesheet" href="/style.css?v=2">
+    </head>
+    <body class="loginPage">
+        <main>
+            <h1>Transcript Service</h1>
+
+            <form id="resetForm" class="loginContainer">
+                <h2>Choose a new password</h2>
+
+                <label for="password">New password</label>
+                <input type="password" id="password" autocomplete="new-password" minlength="12" maxlength="128" required>
+
+                <label for="confirm">Confirm new password</label>
+                <input type="password" id="confirm" autocomplete="new-password" minlength="12" maxlength="128" required>
+
+                <p class="sub">Passwords must be 12-128 characters. Saving signs out all other devices.</p>
+                <button type="submit" id="savePassword" class="loginButton">Save new password</button>
+                <p id="accountStatus" role="status" aria-live="polite"></p>
+                <a class="formLink" id="requestNew" href="/forgot.html" hidden>Request a new reset link</a>
+            </form>
+        </main>
+    <script src="/reset.js"></script>
+    </body>
+</html>

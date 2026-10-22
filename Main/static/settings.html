@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Settings - Transcript Service</title>
+  <link rel="stylesheet" href="/style.css?v=2">
+</head>
+<body>
+
+<button
+  type="button"
+  id="menuButton"
+  class="menu-button"
+  aria-label="Open navigation menu"
+  aria-expanded="false"
+>
+  ☰
+</button>
+
+<nav id="sidebar" class="sidebar">
+  <div class="sidebar-top">
+    <h2>Transcript Service</h2>
+    <a href="/">Home</a>
+    <a href="/#upload">Upload</a>
+    <a href="/history.html">Your uploads</a>
+    <a href="/settings.html" aria-current="page">Settings</a>
+  </div>
+
+  <button type="button" id="logout" class="logout">Log Out</button>
+</nav>
+
+<main>
+  <h1>Settings</h1>
+  <p class="sub" id="signedInAs">Loading your account...</p>
+
+  <section class="card" id="passwordCard" hidden>
+    <h2>Change password</h2>
+    <form id="changePassword" class="loginContainer settingsForm">
+      <label for="currentPassword">Current password</label>
+      <input type="password" id="currentPassword" autocomplete="current-password" maxlength="128" required>
+
+      <label for="newPassword">New password</label>
+      <input type="password" id="newPassword" autocomplete="new-password" minlength="12" maxlength="128" required>
+
+      <label for="confirmPassword">Confirm new password</label>
+      <input type="password" id="confirmPassword" autocomplete="new-password" minlength="12" maxlength="128" required>
+
+      <p class="sub">Passwords must be 12-128 characters. Changing it signs out your other devices.</p>
+      <button type="submit" id="savePassword">Change password</button>
+      <p id="passwordStatus" role="status" aria-live="polite"></p>
+    </form>
+  </section>
+
+  <section class="card" id="resetCard" hidden>
+    <h2>Forgot your current password?</h2>
+    <p>We can email you a link to choose a new one instead.</p>
+    <button type="button" class="secondary" id="emailResetLink">Email me a reset link</button>
+    <p id="resetStatus" role="status" aria-live="polite"></p>
+  </section>
+</main>
+<script src="/settings.js"></script>
+<script src="/verify-banner.js"></script>
+</body>
+</html>
