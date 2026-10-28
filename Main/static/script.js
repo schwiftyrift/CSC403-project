@@ -86,8 +86,7 @@ go.addEventListener("click", () => {
     if (xhr.status >= 200 && xhr.status < 300) {
       say("Upload complete.", "ok");
         transcribe.classList.add("show");
-      loadHistory().catch(e => say(e.message, "error"));
-      result.textContent = `${body.filename} saved to your account.`; result.className = "show";
+      result.textContent = `${body.filename} saved to your account. Manage it under Your uploads.`; result.className = "show";
     } else {
       if (xhr.status === 401) setAccount(null);
       say("Error: " + (body.error || "request failed (" + xhr.status + ")"), "error");
@@ -123,36 +122,16 @@ function setAccount(user) {
   $("accountStatus").textContent = user ? `Signed in as ${user.email}` : "Sign in to upload files and view your history.";
   $("loginLink").hidden = signedIn;
   $("logout").hidden = !signedIn;
-  $("history").hidden = !signedIn;
   go.disabled = !signedIn || !selected;
-  if (!signedIn) { $("historyList").replaceChildren(); result.textContent = ""; }
+  if (!signedIn) result.textContent = "";
 }
 $("logout").addEventListener("click", async () => {
   try { await api("/auth/logout", {method: "POST"}); setAccount(null); window.location.replace("/login.html"); }
   catch (error) { say(error.message, "error"); }
 });
-let historyOffset = 0;
-async function loadHistory(append = false) {
-  if (!append) { historyOffset = 0; $("historyList").replaceChildren(); }
-  const jobs = await api(`/jobs?limit=50&offset=${historyOffset}`);
-  historyOffset += jobs.length;
-  $("moreHistory").hidden = jobs.length < 50;
-  if (!append && !jobs.length) $("historyList").textContent = "No uploads yet.";
-  for (const job of jobs) {
-    const article = document.createElement("article");
-    const title = document.createElement("h3"); title.textContent = job.filename;
-    const link = document.createElement("a"); link.href = `/jobs/${job.job_id}/file`; link.textContent = "Download file";
-    const details = document.createElement("p");
-    details.textContent = `${humanSize(job.size_bytes)} - Uploaded ${new Date(job.uploaded_at * 1000).toLocaleString()}`;
-    article.append(title, details, link);
-    $("historyList").append(article);
-  }
-}
-$("refreshHistory").onclick = () => loadHistory().catch(error => say(error.message, "error"));
-$("moreHistory").onclick = () => loadHistory(true).catch(error => say(error.message, "error"));
 setAccount(null);
 api("/jobs/limits").then(applyLimits).catch(() => {}); // without limits, the server still validates
-api("/auth/me").then(async user => { setAccount(user); await loadHistory(); }).catch(error => {
+api("/auth/me").then(setAccount).catch(error => {
   if (signedIn) say(error.message, "error");
 });
 

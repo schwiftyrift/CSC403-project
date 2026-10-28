@@ -32,6 +32,9 @@ def create_app(data_dir=None):
         response = await call_next(request)
         if request.url.path.startswith(("/auth", "/jobs")):
             response.headers["Cache-Control"] = "no-store"
+        else:
+            # Pages and scripts must be revalidated, or browsers keep running stale copies after an update.
+            response.headers.setdefault("Cache-Control", "no-cache")
         response.headers["X-Content-Type-Options"] = "nosniff"
         return response
 

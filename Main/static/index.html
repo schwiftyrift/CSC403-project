@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Transcript Service</title>
-  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/style.css?v=2">
 </head>
 <body>
 
@@ -23,7 +23,7 @@
     <h2>Transcript Service</h2>
     <a href="/">Home</a>
     <a href="#upload">Upload</a>
-    <a href="#history">Your uploads</a>
+    <a href="/history.html">Your uploads</a>
     <a href="#account">Account</a>
   </div>
 
@@ -38,12 +38,6 @@
     <h2>Account</h2>
     <p id="accountStatus" role="status">Sign in to upload files and view your history.</p>
     <a id="loginLink" href="/login.html">Log in or Create an account</a>
-  </section>
-  <section class="card" id="history" hidden>
-    <h2>Your uploads</h2>
-    <button type="button" id="refreshHistory" class="secondary">Refresh history</button>
-    <div id="historyList"></div>
-    <button type="button" id="moreHistory" hidden>Load more</button>
   </section>
   <div class="card" id="upload">
     <label id="drop" for="file">
@@ -67,6 +61,6 @@
     <pre id="result"></pre>
   </div>
 </main>
-<script src="/script.js"></script>
+<script src="/script.js?v=2"></script>
 </body>
 </html>

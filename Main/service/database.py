@@ -35,6 +35,7 @@ def connect(data_dir):
     db = sqlite3.connect(data_dir / "accounts.sqlite3", timeout=30)
     db.row_factory = sqlite3.Row
     db.execute("PRAGMA foreign_keys = ON")
+    db.execute("PRAGMA secure_delete = ON")  # overwrite deleted rows instead of leaving them in free pages
     try:
         with db:
             yield db
