@@ -1,6 +1,0 @@
-SMTP_HOST=smtp.resend.com
-SMTP_PORT=587
-SMTP_USER=resend
-SMTP_PASSWORD=re_Nqk98F7V_N9BCwSQT3TS1trN9wkLgWDka
-MAIL_FROM="Transcript Service <no-reply@juggflix.com>"
-PUBLIC_ORIGIN=http://localhost:8087
