@@ -3,8 +3,9 @@ import hashlib
 import time
 import uuid
 from pathlib import Path
+from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, UploadFile
 from fastapi.responses import FileResponse
 from .auth import current_user
 from .database import connect
@@ -92,7 +93,8 @@ def upload_limits(request: Request):
 @router.get("/jobs")
 def list_jobs(request: Request, limit: int = Query(50, ge=1, le=100), offset: int = Query(0, ge=0), user=Depends(current_user)):
     with connect(request.app.state.data_dir) as db:
-        return [dict(row) for row in db.execute(f"SELECT {PUBLIC_COLUMNS} FROM jobs WHERE user_id=? ORDER BY uploaded_at DESC, job_id LIMIT ? OFFSET ?", (user["id"], limit, offset))]
+        rows = db.execute(f"SELECT {PUBLIC_COLUMNS}, EXISTS(SELECT 1 FROM transcripts t WHERE t.job_id=jobs.job_id) AS transcript_ready FROM jobs WHERE user_id=? ORDER BY uploaded_at DESC, job_id LIMIT ? OFFSET ?", (user["id"], limit, offset))
+        return [dict(row) | {"transcript_ready": bool(row["transcript_ready"])} for row in rows]
 
 @router.get("/jobs/{job_id}")
 def get_job(job_id: uuid.UUID, request: Request, user=Depends(current_user)):
@@ -108,6 +110,18 @@ def download(job_id: uuid.UUID, request: Request, user=Depends(current_user)):
     if not path.is_file():
         raise HTTPException(404, "file not found")
     return FileResponse(path, filename=row["filename"], media_type="application/octet-stream")
+
+@router.get("/jobs/{job_id}/transcript.txt")
+def download_transcript(job_id: uuid.UUID, request: Request, user=Depends(current_user)):
+    """The newest transcript for one of the user's jobs, as a .txt download named after the upload."""
+    with connect(request.app.state.data_dir) as db:
+        job = owned_job(db, job_id, user["id"])
+        row = db.execute("SELECT text FROM transcripts WHERE job_id=? ORDER BY created_at DESC LIMIT 1", (str(job_id),)).fetchone()
+    if row is None:
+        raise HTTPException(404, "The transcript isn't ready yet. Try again once transcription finishes.")
+    name = f"{Path(job['filename']).stem or 'transcript'}.txt"
+    return Response(row["text"].strip() + "\n", media_type="text/plain; charset=utf-8",
+                    headers={"Content-Disposition": f"attachment; filename*=utf-8''{quote(name)}"})
 
 def remove_files(uploads, job_id):
     """Delete the upload and any sidecar files (e.g. <job_id>.transcript.json)."""
