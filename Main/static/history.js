@@ -49,7 +49,15 @@ function render(job) {
   remove.type = "button"; remove.className = "danger"; remove.textContent = "Delete";
   remove.setAttribute("aria-label", `Delete ${job.filename}`);
   remove.addEventListener("click", () => deleteOne(job, article, remove));
-  actions.append(link, remove);
+  actions.append(link);
+  if (job.transcript_ready) {
+    const transcript = document.createElement("button");
+    transcript.type = "button"; transcript.className = "secondary"; transcript.textContent = "Download transcript";
+    transcript.setAttribute("aria-label", `Download the transcript of ${job.filename} as a text file`);
+    transcript.addEventListener("click", () => downloadTranscript(job, transcript));
+    actions.append(transcript);
+  }
+  actions.append(remove);
   article.append(title, details, actions);
   return article;
 }
@@ -64,6 +72,34 @@ async function loadHistory(append = false) {
   $("moreHistory").hidden = jobs.length < PAGE_SIZE;
   $("history").hidden = false;
   updateEmptyState();
+}
+
+// Fetched rather than linked so a failure shows a message here instead of a raw error page.
+async function downloadTranscript(job, button) {
+  button.disabled = true;
+  say(`Preparing the transcript of ${job.filename}...`);
+  try {
+    const response = await fetch(`/jobs/${job.job_id}/transcript.txt`);
+    if (response.status === 401) { window.location.replace("/login.html"); return; }
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw new Error(response.status >= 500
+        ? "The transcript service is down right now. Try again in a few minutes."
+        : (body.error || `The download failed (${response.status}). Try again.`));
+    }
+    const url = URL.createObjectURL(await response.blob());
+    const save = document.createElement("a");
+    save.href = url;
+    save.download = job.filename.replace(/\.[^.]+$/, "") + ".txt";
+    save.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    say(`Downloaded the transcript of ${job.filename}.`, "ok");
+  } catch (error) {
+    // fetch throws a TypeError when the server cannot be reached at all.
+    say(error instanceof TypeError ? "Could not reach the server. Check your connection and try again." : error.message, "error");
+  } finally {
+    button.disabled = false;
+  }
 }
 
 async function deleteOne(job, article, button) {
