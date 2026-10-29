@@ -13,11 +13,12 @@ def create_app(data_dir=None):
     @asynccontextmanager
     async def lifespan(app):
         database.initialize(app.state.data_dir)
+        jobs.fingerprint_existing_uploads(app.state.data_dir)
         yield
 
     app = FastAPI(title="Transcript Service", version="0.2.0", lifespan=lifespan)
     app.state.data_dir = Path(data_dir or os.environ.get("DATA_DIR", "./data"))
-    app.state.max_bytes = int(os.environ.get("MAX_UPLOAD_MB", "500")) * 1024 * 1024
+    app.state.max_bytes = int(os.environ.get("MAX_UPLOAD_MB", jobs.DEFAULT_MAX_MB)) * 1024 * 1024
     app.state.cookie_secure = os.environ.get("COOKIE_SECURE", "false").lower() == "true"
 
     @app.middleware("http")
@@ -31,6 +32,9 @@ def create_app(data_dir=None):
         response = await call_next(request)
         if request.url.path.startswith(("/auth", "/jobs")):
             response.headers["Cache-Control"] = "no-store"
+        else:
+            # Pages and scripts must be revalidated, or browsers keep running stale copies after an update.
+            response.headers.setdefault("Cache-Control", "no-cache")
         response.headers["X-Content-Type-Options"] = "nosniff"
         return response
 

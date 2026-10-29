@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Your uploads - Transcript Service</title>
+  <link rel="stylesheet" href="/style.css?v=2">
+</head>
+<body>
+
+<button
+  type="button"
+  id="menuButton"
+  class="menu-button"
+  aria-label="Open navigation menu"
+  aria-expanded="false"
+>
+  ☰
+</button>
+
+<nav id="sidebar" class="sidebar">
+  <div class="sidebar-top">
+    <h2>Transcript Service</h2>
+    <a href="/">Home</a>
+    <a href="/#upload">Upload</a>
+    <a href="/history.html" aria-current="page">Your uploads</a>
+    <a href="/#account">Account</a>
+  </div>
+
+  <button type="button" id="logout" class="logout">Log Out</button>
+</nav>
+
+<main>
+  <h1>Your uploads</h1>
+  <p class="sub">Download or permanently delete the files you uploaded. Deleting a file also deletes its transcript.</p>
+  <div id="status" role="status" aria-live="polite"></div>
+
+  <section class="card" id="history" hidden>
+    <div class="history-toolbar">
+      <div class="view-toggle" role="group" aria-label="Layout">
+        <button type="button" class="secondary" id="listView" aria-pressed="true">List</button>
+        <button type="button" class="secondary" id="gridView" aria-pressed="false">Grid</button>
+      </div>
+      <button type="button" class="secondary" id="refreshHistory">Refresh</button>
+      <button type="button" class="danger" id="deleteAll" disabled>Delete all</button>
+    </div>
+    <p id="emptyHistory" hidden>No uploads yet.</p>
+    <div id="historyList" class="list-view"></div>
+    <button type="button" id="moreHistory" hidden>Load more</button>
+  </section>
+</main>
+<script src="/history.js"></script>
+</body>
+</html>

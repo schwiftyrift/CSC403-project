@@ -4,6 +4,8 @@ FastAPI service with email/password accounts, private media uploads, and upload 
 
 ## Run locally (PowerShell)
 
+Run these from this `Main` folder.
+
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
@@ -15,7 +17,8 @@ The separate `/login.html` page uses the login design from the team's `test` bra
 connected to the account API. Successful login returns to the upload page;
 logout revokes the session and opens the login page. API documentation: `/docs`.
 Tests: `.\.venv\Scripts\python.exe -m pytest -q`.
-Docker: `docker compose up --build`; open http://localhost:8087/.
+Docker (from the repo root): `docker compose up --build` starts the app and the transcription
+worker; open http://localhost:8087/.
 
 ## Accounts and data
 
@@ -30,14 +33,35 @@ Uploaded bytes live in `DATA_DIR/uploads`. The default DATA_DIR is `./data`;
 Docker uses `/data` in the existing persistent volume. Back up the database and
 uploads together while the service is stopped.
 
-All job routes require login and check ownership, including downloads. Another account receives 404 when requesting a private job.
+Deleting an upload removes its database row, its transcripts (by cascade), its stored
+hash, and every `uploads/<job_id>.*` file. SQLite `secure_delete` is enabled so deleted rows are
+overwritten in the database file. If a file is in use (for example, being downloaded on
+Windows), the API returns 409 and keeps the record so the user can retry. Backups made
+before a deletion still contain the deleted data.
+
+All job routes except `/jobs/limits` require login and check ownership, including downloads. Another account receives 404 when requesting a private job.
 Existing JSON upload records remain on disk but are not assigned to any account;
 an explicit owner mapping is required before migrating old uploads.
 
 Automatic transcription is not implemented yet. The current demonstration covers
-registration, login/logout, private file storage, downloads, and upload history.
+registration, login/logout, private file storage, downloads, upload history, and deletion.
 There is no manual transcript entry or transcript API; a future transcription
 integration can attach generated text to uploaded jobs.
+
+## Upload limits
+
+Allowed: .mp3, .wav, .m4a, .mp4, .mov. Max size: 500 MB (set `MAX_UPLOAD_MB` to change).
+To change them, edit `ALLOWED` and `DEFAULT_MAX_MB` at the top of `service/jobs.py`;
+nothing else needs to change. The upload page reads them from
+`GET /jobs/limits`, so the browser and server always agree. Rejected files get a message
+explaining why and how to fix it. The server re-checks every upload.
+
+Duplicate uploads are blocked by content, not name: the server takes a SHA-256 hash while
+receiving the file and rejects it (409) if the same account already has a file with that hash
+stored on the server, even under another name. A record whose file is missing from disk does
+not block re-uploading it. Different files with the same name are allowed, and other accounts
+are unaffected. Hashes live in the `upload_hashes` table and are removed with their upload.
+Uploads stored before this check existed are hashed automatically at startup.
 
 ## API
 
@@ -48,12 +72,16 @@ integration can attach generated text to uploaded jobs.
 | GET | /auth/me | Current account |
 | POST | /auth/logout | Revoke current session |
 | POST | /jobs | Upload multipart `file` |
+| GET | /jobs/limits | Allowed extensions and max upload size (no login needed) |
 | GET | /jobs | Current user's uploads |
 | GET | /jobs/{id} | Upload metadata |
 | GET | /jobs/{id}/file | Download original file |
+| DELETE | /jobs/{id} | Delete one upload, its stored file, and its transcript |
+| DELETE | /jobs | Delete all of the current user's uploads and transcripts |
 
 Lists accept `limit` (1-100, default 50) and `offset` (default 0).
-The UI pages through upload history.
+The history page (`/history.html`) pages
+through uploads, offers list and grid layouts, and deletes one upload or all of them.
 Use a cookie jar with API clients. Browser writes must be from the same origin.
 
 ## Adding account features
@@ -61,7 +89,7 @@ Use a cookie jar with API clients. Browser writes must be from the same origin.
 - `service/database.py`: connection management, foreign keys, schema version 1.
   Add versioned migrations here when changing an existing schema.
 - `service/auth.py`: accounts, password hashing, reusable `current_user` dependency.
-- `service/jobs.py`: owned uploads, downloads, and upload history.
+- `service/jobs.py`: owned uploads, downloads, upload history, and deletion.
 - `main.py`: app factory, configuration, shared middleware, router registration.
 
 For a feature such as preferences or notes, add a table with

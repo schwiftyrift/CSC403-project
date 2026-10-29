@@ -1,8 +1,15 @@
 .git
+.gitignore
 .venv
 **/__pycache__
 **/.pytest_cache
 data
 .env
 Project Documents
-README.md
+**/README.md
+**/*.bak*
+**/*.mp3
+**/*.wav
+**/*.m4a
+**/*.mp4
+**/*.mov

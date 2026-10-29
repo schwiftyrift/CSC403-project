@@ -1,6 +1,4 @@
 const API_URL = "/jobs";
-const ALLOWED = [".mp3", ".wav", ".m4a", ".mp4", ".mov"];
-const MAX_MB = 500;
 // -----------------------------------------------------------------------------
 
 const $ = (id) => document.getElementById(id);
@@ -8,6 +6,7 @@ const drop = $("drop"), input = $("file"), chosen = $("chosen"), bar = $("bar");
 const go = $("go"), statusEl = $("status"), result = $("result");
 let selected = null;
 let signedIn = false;
+let limits = null; // loaded from GET /jobs/limits; the server checks again on upload
 
 function say(text, kind = "") { statusEl.textContent = text; statusEl.className = kind; }
 
@@ -18,12 +17,30 @@ function humanSize(bytes) {
   return (bytes / 1024 ** 3).toFixed(2) + " GB";
 }
 
+function applyLimits(data) {
+  limits = data;
+  input.accept = limits.extensions.join(",");
+  $("dropHint").textContent = "or click to choose one \u00b7 " + limits.extensions.map(e => e.slice(1)).join(", ") +
+    " \u00b7 up to " + humanSize(limits.max_bytes);
+}
+
+// Messages match the server's wording in service/jobs.py.
+function problemWith(file) {
+  const dot = file.name.lastIndexOf(".");
+  const ext = dot > 0 && dot < file.name.length - 1 ? file.name.slice(dot).toLowerCase() : "";
+  const formats = limits.extensions.join(", ");
+  if (!ext) return `The file has no extension. Rename it to end in one of: ${formats}.`;
+  if (!limits.extensions.includes(ext)) return `${ext} files are not supported. Upload one of: ${formats}. Try converting the file to ${limits.extensions[0]}.`;
+  if (file.size === 0) return "The file is empty. Choose a file that contains audio or video.";
+  if (file.size > limits.max_bytes) return `${file.name} is ${humanSize(file.size)}, but the limit is ${humanSize(limits.max_bytes)}. Trim or compress the recording and try again.`;
+  return null;
+}
+
 function setFile(file) {
   result.className = ""; result.textContent = "";
   bar.className = ""; bar.value = 0;
-  const ext = "." + (file.name.split(".").pop() || "").toLowerCase();
-  if (!ALLOWED.includes(ext)) { clearFile(); say("Unsupported file type. Use " + ALLOWED.join(", ") + ".", "error"); return; }
-  if (file.size > MAX_MB * 1024 * 1024) { clearFile(); say("File is larger than " + MAX_MB + " MB.", "error"); return; }
+  const problem = limits && problemWith(file);
+  if (problem) { clearFile(); say(problem, "error"); return; }
   selected = file;
   $("name").textContent = file.name;
   $("size").textContent = humanSize(file.size);
@@ -35,6 +52,7 @@ function setFile(file) {
 function clearFile() {
   selected = null; input.value = "";
   chosen.classList.remove("show");
+  transcribe.classList.remove("show")
   go.disabled = true;
 }
 
@@ -54,6 +72,7 @@ drop.addEventListener("drop", (e) => {
 
 go.addEventListener("click", () => {
   if (!selected || !signedIn) return;
+  const transcribe = document.getElementById("transcribe");
   const form = new FormData();
   form.append("file", selected);
   const xhr = new XMLHttpRequest();
@@ -66,8 +85,8 @@ go.addEventListener("click", () => {
     try { body = JSON.parse(xhr.responseText); } catch (_) {}
     if (xhr.status >= 200 && xhr.status < 300) {
       say("Upload complete.", "ok");
-      loadHistory().catch(e => say(e.message, "error"));
-      result.textContent = `${body.filename} saved to your account.`; result.className = "show";
+        transcribe.classList.add("show");
+      result.textContent = `${body.filename} saved to your account. Manage it under Your uploads.`; result.className = "show";
     } else {
       if (xhr.status === 401) setAccount(null);
       say("Error: " + (body.error || "request failed (" + xhr.status + ")"), "error");
@@ -103,34 +122,19 @@ function setAccount(user) {
   $("accountStatus").textContent = user ? `Signed in as ${user.email}` : "Sign in to upload files and view your history.";
   $("loginLink").hidden = signedIn;
   $("logout").hidden = !signedIn;
-  $("history").hidden = !signedIn;
   go.disabled = !signedIn || !selected;
-  if (!signedIn) { $("historyList").replaceChildren(); result.textContent = ""; }
+  if (!signedIn) result.textContent = "";
 }
 $("logout").addEventListener("click", async () => {
   try { await api("/auth/logout", {method: "POST"}); setAccount(null); window.location.replace("/login.html"); }
   catch (error) { say(error.message, "error"); }
 });
-let historyOffset = 0;
-async function loadHistory(append = false) {
-  if (!append) { historyOffset = 0; $("historyList").replaceChildren(); }
-  const jobs = await api(`/jobs?limit=50&offset=${historyOffset}`);
-  historyOffset += jobs.length;
-  $("moreHistory").hidden = jobs.length < 50;
-  if (!append && !jobs.length) $("historyList").textContent = "No uploads yet.";
-  for (const job of jobs) {
-    const article = document.createElement("article");
-    const title = document.createElement("h3"); title.textContent = job.filename;
-    const link = document.createElement("a"); link.href = `/jobs/${job.job_id}/file`; link.textContent = "Download file";
-    const details = document.createElement("p");
-    details.textContent = `${humanSize(job.size_bytes)} - Uploaded ${new Date(job.uploaded_at * 1000).toLocaleString()}`;
-    article.append(title, details, link);
-    $("historyList").append(article);
-  }
-}
-$("refreshHistory").onclick = () => loadHistory().catch(error => say(error.message, "error"));
-$("moreHistory").onclick = () => loadHistory(true).catch(error => say(error.message, "error"));
 setAccount(null);
-api("/auth/me").then(async user => { setAccount(user); await loadHistory(); }).catch(error => {
+api("/jobs/limits").then(applyLimits).catch(() => {}); // without limits, the server still validates
+api("/auth/me").then(setAccount).catch(error => {
   if (signedIn) say(error.message, "error");
+});
+
+transcribe.addEventListener("click", ()=> {
+  window.location.href = "/transcribe.html";
 });
