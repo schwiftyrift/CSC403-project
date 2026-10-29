@@ -1,7 +1,9 @@
-const form = document.getElementById("loginContainer");
-const password = document.getElementById("password");
-const showPassword = document.getElementById("showPassword");
-const accountStatus = document.getElementById("accountStatus");
+import { $, api } from "./utils.js";
+
+const form = $("loginContainer");
+const password = $("password");
+const showPassword = $("showPassword");
+const accountStatus = $("accountStatus");
 
 showPassword.addEventListener("click", () => {
   const visible = password.type === "password";
@@ -18,13 +20,18 @@ form.addEventListener("submit", async event => {
   accountStatus.textContent = "Signing in...";
   try {
     const action = event.submitter?.id === "register" ? "register" : "login";
-    const response = await fetch(`/auth/${action}`, {
+    
+    await api(`/auth/${action}`, {
       method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({email: document.getElementById("email").value, password: password.value})
+      headers:{
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        email: $("email").value,
+        password: password.value
+      })
     });
-    const body = await response.json();
-    if (!response.ok) throw new Error(body.error || "Unable to sign in");
+    
     password.value = "";
     window.location.replace("/");
   } catch (error) {
