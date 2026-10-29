@@ -63,6 +63,35 @@ not block re-uploading it. Different files with the same name are allowed, and o
 are unaffected. Hashes live in the `upload_hashes` table and are removed with their upload.
 Uploads stored before this check existed are hashed automatically at startup.
 
+## Email verification
+
+New accounts are emailed a link to `/verify.html?token=...`; opening it marks the address
+verified. Links expire after 24 hours and only verify the account's current email address.
+Signed-in users with an unverified email see a banner with a Resend button (at most one email
+a minute and five a day per account). Unverified accounts can still use the site, and
+`GET /auth/me` reports `email_verified`. Links are stored only as SHA-256 hashes
+(`email_tokens`); verified addresses are kept in `verified_emails`.
+
+Email is sent over SMTP using the settings below. Without `SMTP_HOST`, emails are written to
+`outbox.log` in the data folder instead, so development and tests never send real email. With
+`SMTP_HOST` set, `MAIL_FROM` is required and the app will not start without it. For Docker,
+copy `.env.example` to `.env` at the repo root and fill it in (`.env` is never committed).
+When running locally without Docker, set the variables in PowerShell first, for example
+`$env:SMTP_HOST = "smtp.resend.com"`.
+
+## Passwords
+
+The login page links to "Forgot password?" (`/forgot.html`): users enter their email and, if an
+account exists, receive a link to `/reset.html?token=...`. The reply is the same whether or not
+the address has an account, and the email is sent after the response so timing does not reveal
+it either. Reset links work once, expire after one hour, and are stored only as SHA-256 hashes
+(`password_resets`). Using one sets the new password, signs the account out everywhere, signs this
+browser in, marks the email verified, and emails a "password changed" notice.
+
+The Settings page (`/settings.html`) lets signed-in users change their password with their current
+one (other devices are signed out) or email themselves a reset link. Reset emails are limited to
+one a minute and five a day per account; failed sends do not count.
+
 ## API
 
 | Method | Route | Purpose |
@@ -71,6 +100,12 @@ Uploads stored before this check existed are hashed automatically at startup.
 | POST | /auth/login | Sign in with the same JSON fields |
 | GET | /auth/me | Current account |
 | POST | /auth/logout | Revoke current session |
+| POST | /auth/verify | Verify an email address from a link (`token` JSON; no login needed) |
+| POST | /auth/verification-email | Email a new verification link to the signed-in user |
+| POST | /auth/password-reset-request | Email a reset link if the account exists (`email` JSON; always 202) |
+| POST | /auth/password-reset | Set a new password from a link (`token`, `password` JSON); signs in |
+| POST | /auth/password | Change password when signed in (`current_password`, `new_password` JSON) |
+| POST | /auth/password-reset-email | Email a reset link to the signed-in user |
 | POST | /jobs | Upload multipart `file` |
 | GET | /jobs/limits | Allowed extensions and max upload size (no login needed) |
 | GET | /jobs | Current user's uploads |
@@ -104,8 +139,12 @@ Never accept an owner ID from the browser as proof of authorization.
 - `MAX_UPLOAD_MB`: maximum file size (default 500).
 - `COOKIE_SECURE=true`: required when serving over HTTPS in deployment.
 - `PUBLIC_ORIGIN`: exact public origin, e.g. `https://transcripts.example.com`,
-  for same-origin validation behind a reverse proxy. No trailing slash.
+  for same-origin validation behind a reverse proxy and for links in emails. No trailing slash.
+- `SMTP_HOST`, `SMTP_PORT` (default 587; 465 also works), `SMTP_USER`, `SMTP_PASSWORD`:
+  outgoing mail server. For Resend: `smtp.resend.com`, 587, `resend`, and an API key.
+- `MAIL_FROM`: sender, e.g. `Transcript Service <no-reply@mail.example.com>`, on a domain
+  your mail provider has verified.
 
 Before public deployment, configure HTTPS, secure cookies, and proxy-level login
-rate limiting. Email verification, password reset, MFA, account deletion, storage
+rate limiting. MFA, account deletion, storage
 quotas, and automated transcription are not implemented in this initial foundation.

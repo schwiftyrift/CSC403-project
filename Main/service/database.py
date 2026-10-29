@@ -24,8 +24,22 @@ CREATE TABLE IF NOT EXISTS upload_hashes (
  job_id TEXT PRIMARY KEY REFERENCES jobs(job_id) ON DELETE CASCADE,
  user_id TEXT NOT NULL, sha256 TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS email_tokens (
+ token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+ email TEXT NOT NULL, created_at REAL NOT NULL, expires_at REAL NOT NULL
+);
+CREATE TABLE IF NOT EXISTS verified_emails (
+ user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+ email TEXT NOT NULL, verified_at REAL NOT NULL
+);
+CREATE TABLE IF NOT EXISTS password_resets (
+ token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+ created_at REAL NOT NULL, expires_at REAL NOT NULL
+);
 CREATE INDEX IF NOT EXISTS jobs_owner ON jobs(user_id, uploaded_at);
 CREATE INDEX IF NOT EXISTS upload_hashes_owner ON upload_hashes(user_id, sha256);
+CREATE INDEX IF NOT EXISTS password_resets_owner ON password_resets(user_id, created_at);
+CREATE INDEX IF NOT EXISTS email_tokens_owner ON email_tokens(user_id, created_at);
 CREATE INDEX IF NOT EXISTS transcripts_job ON transcripts(job_id, created_at);
 CREATE INDEX IF NOT EXISTS sessions_owner ON sessions(user_id);
 """

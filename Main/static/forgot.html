@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Forgot password - Transcript Service</title>
+        <link rel="stylesheet" href="/style.css?v=2">
+    </head>
+    <body class="loginPage">
+        <main>
+            <h1>Transcript Service</h1>
+
+            <form id="forgotForm" class="loginContainer">
+                <h2>Forgot your password?</h2>
+                <p class="sub">Enter your account's email address and we'll send you a link to choose a new password.</p>
+
+                <label for="email">Email</label>
+                <input type="email" id="email" placeholder="Enter Email" autocomplete="email" maxlength="254" required>
+
+                <button type="submit" id="sendLink" class="loginButton">Send reset link</button>
+                <p id="accountStatus" role="status" aria-live="polite"></p>
+                <a class="formLink" href="/login.html">Back to log in</a>
+            </form>
+        </main>
+    <script src="/forgot.js"></script>
+    </body>
+</html>
