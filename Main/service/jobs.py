@@ -65,7 +65,7 @@ async def create_job(request: Request, file: UploadFile, user=Depends(current_us
                 digest.update(chunk)
         if size == 0:
             raise HTTPException(400, "The file is empty. Choose a file that contains audio or video.")
-        meta = dict(job_id=job_id, filename=(file.filename or "upload").replace("\\", "/").split("/")[-1], size_bytes=size, status="stored", uploaded_at=time.time())
+        meta = dict(job_id=job_id, filename=(file.filename or "upload").replace("\\", "/").split("/")[-1], size_bytes=size, status="queued", uploaded_at=time.time())
         sha256 = digest.hexdigest()
         with connect(request.app.state.data_dir) as db:
             # Lock before checking so two simultaneous uploads of the same file cannot both pass.
