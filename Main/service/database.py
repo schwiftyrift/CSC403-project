@@ -36,6 +36,12 @@ CREATE TABLE IF NOT EXISTS password_resets (
  token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
  created_at REAL NOT NULL, expires_at REAL NOT NULL
 );
+CREATE TABLE IF NOT EXISTS job_progress (
+ job_id TEXT PRIMARY KEY REFERENCES jobs(job_id) ON DELETE CASCADE,
+ stage TEXT NOT NULL, duration_seconds REAL, processed_seconds REAL NOT NULL DEFAULT 0,
+ started_at REAL NOT NULL, updated_at REAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS jobs_status ON jobs(status, uploaded_at);
 CREATE INDEX IF NOT EXISTS jobs_owner ON jobs(user_id, uploaded_at);
 CREATE INDEX IF NOT EXISTS upload_hashes_owner ON upload_hashes(user_id, sha256);
 CREATE INDEX IF NOT EXISTS password_resets_owner ON password_resets(user_id, created_at);

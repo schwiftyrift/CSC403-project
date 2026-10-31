@@ -1,5 +1,6 @@
 const PAGE_SIZE = 50;
 const VIEW_KEY = "historyView";
+const STATUS_TEXT = {queued: "Waiting to be transcribed", processing: "Transcribing", done: "Transcript ready", failed: "Transcription failed"};
 // -----------------------------------------------------------------------------
 
 const $ = (id) => document.getElementById(id);
@@ -37,11 +38,21 @@ function updateEmptyState() {
   $("deleteAll").disabled = empty;
 }
 
+function transcriptButton(job) {
+  const transcript = document.createElement("button");
+  transcript.type = "button"; transcript.className = "secondary transcript-download"; transcript.textContent = "Download transcript";
+  transcript.setAttribute("aria-label", `Download the transcript of ${job.filename} as a text file`);
+  transcript.addEventListener("click", () => downloadTranscript(job, transcript));
+  return transcript;
+}
+
 function render(job) {
   const article = document.createElement("article");
+  article.dataset.jobId = job.job_id;
   const title = document.createElement("h3"); title.textContent = job.filename;
   const details = document.createElement("p");
   details.textContent = `${humanSize(job.size_bytes)} - Uploaded ${new Date(job.uploaded_at * 1000).toLocaleString()}`;
+  const status = document.createElement("p"); status.className = "job-status"; status.textContent = STATUS_TEXT[job.status] || job.status;
   const actions = document.createElement("div"); actions.className = "actions";
   const link = document.createElement("a"); link.href = `/jobs/${job.job_id}/file`; link.textContent = "Download";
   link.setAttribute("aria-label", `Download ${job.filename}`);
@@ -51,14 +62,10 @@ function render(job) {
   remove.addEventListener("click", () => deleteOne(job, article, remove));
   actions.append(link);
   if (job.transcript_ready) {
-    const transcript = document.createElement("button");
-    transcript.type = "button"; transcript.className = "secondary"; transcript.textContent = "Download transcript";
-    transcript.setAttribute("aria-label", `Download the transcript of ${job.filename} as a text file`);
-    transcript.addEventListener("click", () => downloadTranscript(job, transcript));
-    actions.append(transcript);
+    actions.append(transcriptButton(job));
   }
   actions.append(remove);
-  article.append(title, details, actions);
+  article.append(title, details, status, actions);
   return article;
 }
 
@@ -162,6 +169,19 @@ menuButton.addEventListener("click", () => {
 $("logout").addEventListener("click", async () => {
   try { await api("/auth/logout", {method: "POST"}); window.location.replace("/login.html"); }
   catch (error) { say(error.message, "error"); }
+});
+
+// Update rows in place: reloading the list would lose "Load more" pages and keyboard focus.
+window.addEventListener("jobs:update", (event) => {
+  for (const job of event.detail) {
+    const article = list.querySelector(`article[data-job-id="${job.job_id}"]`);
+    if (!article) continue;
+    article.querySelector(".job-status").textContent = job.percent !== null && job.status === "processing"
+      ? `Transcribing: ${job.percent}%` : STATUS_TEXT[job.status] || job.status;
+    if (job.status === "done" && !article.querySelector(".transcript-download")) {
+      article.querySelector(".actions").insertBefore(transcriptButton(job), article.querySelector(".danger"));
+    }
+  }
 });
 
 api("/auth/me").then(() => loadHistory()).catch(error => say(error.message, "error"));

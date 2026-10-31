@@ -6,6 +6,7 @@ const drop = $("drop"), input = $("file"), chosen = $("chosen"), bar = $("bar");
 const go = $("go"), statusEl = $("status"), result = $("result");
 let selected = null;
 let signedIn = false;
+let uploading = false;
 let limits = null; // loaded from GET /jobs/limits; the server checks again on upload
 
 function say(text, kind = "") { statusEl.textContent = text; statusEl.className = kind; }
@@ -37,6 +38,7 @@ function problemWith(file) {
 }
 
 function setFile(file) {
+  if (uploading) { say("Wait for the current upload to finish.", "error"); return; }
   result.className = ""; result.textContent = "";
   bar.className = ""; bar.value = 0;
   const problem = limits && problemWith(file);
@@ -70,30 +72,61 @@ drop.addEventListener("drop", (e) => {
 // Stop the browser from opening a file that is dropped outside the box
 ["dragover", "drop"].forEach((ev) => window.addEventListener(ev, (e) => e.preventDefault()));
 
+function formatTimeLeft(seconds) {
+  if (seconds < 60) return "less than a minute left";
+  return `about ${Math.ceil(seconds / 60)} min left`;
+}
+
+function endUpload() {
+  uploading = false;
+  bar.className = "";
+  $("uploadProgressText").textContent = "";
+  $("clear").disabled = false;
+}
+
+// Leaving the page cancels the transfer, because the browser owns it until it finishes.
+window.addEventListener("beforeunload", (e) => { if (uploading) { e.preventDefault(); e.returnValue = ""; } });
+
 go.addEventListener("click", () => {
   if (!selected || !signedIn) return;
-  const transcribe = document.getElementById("transcribe");
   const form = new FormData();
   form.append("file", selected);
   const xhr = new XMLHttpRequest();
   xhr.open("POST", API_URL);
   go.disabled = true; bar.className = "show"; bar.value = 0; result.className = ""; say("Uploading...");
+  uploading = true; $("clear").disabled = true;
+  const uploadStarted = Date.now();
 
-  xhr.upload.onprogress = (e) => { if (e.lengthComputable) bar.value = (e.loaded / e.total) * 100; };
+  xhr.upload.onprogress = (e) => {
+    if (!e.lengthComputable) return;
+    if (e.loaded === e.total) {
+      // All bytes are sent, but the server still has to store and fingerprint the file.
+      bar.removeAttribute("value");
+      $("uploadProgressText").textContent = "Saving your file on the server...";
+      return;
+    }
+    bar.value = (e.loaded / e.total) * 100;
+    const elapsed = (Date.now() - uploadStarted) / 1000;
+    const timeLeft = elapsed >= 1 && e.loaded > 0 ? ` - ${formatTimeLeft((e.total - e.loaded) * elapsed / e.loaded)}` : "";
+    $("uploadProgressText").textContent = `${Math.round(bar.value)}% uploaded${timeLeft}`;
+  };
   xhr.onload = () => {
+    endUpload();
     let body = {};
     try { body = JSON.parse(xhr.responseText); } catch (_) {}
     if (xhr.status >= 200 && xhr.status < 300) {
-      say("Upload complete.", "ok");
-        transcribe.classList.add("show");
-      result.textContent = `${body.filename} saved to your account. Manage it under Your uploads.`; result.className = "show";
+      clearFile(); // re-sending the same file would only be rejected as a duplicate
+      say("Upload complete. Transcription starts automatically, so you can leave this page.", "ok");
+      result.textContent = `${body.filename} saved to your account. Follow its progress in the panel on screen, on any page.`; result.className = "show";
+      window.dispatchEvent(new Event("jobs:refresh")); // show the new job now instead of at the next poll
     } else {
       if (xhr.status === 401) setAccount(null);
       say("Error: " + (body.error || "request failed (" + xhr.status + ")"), "error");
     }
-    go.disabled = !signedIn;
+    go.disabled = !signedIn || !selected;
   };
-  xhr.onerror = () => { say("Could not reach the server.", "error"); go.disabled = !signedIn; };
+  xhr.onerror = () => { endUpload(); say("Could not reach the server.", "error"); go.disabled = !signedIn || !selected; };
+  xhr.onabort = () => { endUpload(); go.disabled = !signedIn || !selected; };
   xhr.send(form);
 });
 

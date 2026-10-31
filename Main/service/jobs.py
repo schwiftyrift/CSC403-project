@@ -16,12 +16,38 @@ ALLOWED = (".mp3", ".wav", ".m4a", ".mp4", ".mov")
 DEFAULT_MAX_MB = 500  # the MAX_UPLOAD_MB environment variable overrides this
 FORMATS = ", ".join(ALLOWED)
 PUBLIC_COLUMNS = "job_id, filename, size_bytes, status, uploaded_at"
+RECENT_SECONDS = 60 * 60 * 24  # finished jobs stay in /jobs/activity this long, for "finished while you were away"
+STALLED_SECONDS = 180  # one Whisper window on a slow CPU can legitimately take a minute or more
+MIN_ETA_ELAPSED = 15  # earlier estimates swing too much to be useful
 
 def owned_job(db, job_id, user_id):
     row = db.execute("SELECT * FROM jobs WHERE job_id=? AND user_id=?", (str(job_id), user_id)).fetchone()
     if row is None:
         raise HTTPException(404, "job not found")
     return row
+
+def progress_fields(row, now):
+    """Turn a jobs + job_progress row into what the progress UI shows."""
+    status = row["status"]
+    fields = dict(stage="preparing" if status == "processing" else status, percent=100 if status == "done" else None, eta_seconds=None, stalled=False)
+    # jobs.status wins over job_progress, so an old row can't make a requeued job look active.
+    if status != "processing" or row["updated_at"] is None:
+        return fields
+    since_update = max(0, now - row["updated_at"])
+    fields["stalled"] = since_update > STALLED_SECONDS
+    if row["stage"] != "transcribing":
+        return fields
+    fields["stage"] = "transcribing"
+    duration = row["duration_seconds"]
+    if not duration:
+        return fields
+    processed = min(row["processed_seconds"], duration)
+    # 100 is reserved for status "done", so the bar never sits full while work continues.
+    fields["percent"] = min(99, int(processed / duration * 100))
+    elapsed = row["updated_at"] - row["started_at"]
+    if processed > 0 and elapsed >= MIN_ETA_ELAPSED:
+        fields["eta_seconds"] = max(0, round(elapsed / processed * (duration - processed) - since_update))
+    return fields
 
 def fingerprint_existing_uploads(data_dir):
     """Hash uploads stored before duplicate detection existed, or by code without it."""
@@ -89,6 +115,25 @@ async def create_job(request: Request, file: UploadFile, user=Depends(current_us
 @router.get("/jobs/limits")
 def upload_limits(request: Request):
     return {"extensions": list(ALLOWED), "max_bytes": request.app.state.max_bytes}
+
+@router.get("/jobs/activity")
+def job_activity(request: Request, user=Depends(current_user)):
+    """The user's unfinished jobs and recently finished ones, for the progress panel on every page."""
+    now = time.time()
+    jobs = []
+    with connect(request.app.state.data_dir) as db:
+        rows = db.execute("""SELECT j.job_id, j.filename, j.status, j.uploaded_at, p.stage, p.duration_seconds, p.processed_seconds, p.started_at, p.updated_at
+            FROM jobs j LEFT JOIN job_progress p ON p.job_id=j.job_id
+            WHERE j.user_id=? AND (j.status IN ('queued', 'processing') OR (j.status IN ('done', 'failed') AND p.updated_at>?))
+            ORDER BY j.uploaded_at DESC, j.job_id LIMIT 100""", (user["id"], now - RECENT_SECONDS)).fetchall()
+        for row in rows:
+            ahead = None
+            if row["status"] == "queued":
+                # The queue is shared between accounts. Only a count is exposed, never other users' jobs.
+                ahead = db.execute("SELECT COUNT(*) FROM jobs WHERE status='processing' OR (status='queued' AND uploaded_at<?)", (row["uploaded_at"],)).fetchone()[0]
+            jobs.append({"job_id": row["job_id"], "filename": row["filename"], "status": row["status"], "jobs_ahead": ahead,
+                         "finished_at": row["updated_at"] if row["status"] in ("done", "failed") else None} | progress_fields(row, now))
+    return {"jobs": jobs}
 
 @router.get("/jobs")
 def list_jobs(request: Request, limit: int = Query(50, ge=1, le=100), offset: int = Query(0, ge=0), user=Depends(current_user)):

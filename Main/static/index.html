@@ -33,7 +33,7 @@
 
 <main>
   <h1>Transcript Service</h1>
-  <p class="sub">Upload and store audio or video files in your account. Automatic transcription is not available yet.</p>
+  <p class="sub">Upload an audio or video file and it will be transcribed automatically.</p>
 
   <section class="card" id="account">
     <h2>Account</h2>
@@ -53,6 +53,7 @@
     </div>
 
     <progress id="bar" max="100" value="0"></progress>
+    <div id="uploadProgressText"></div>
 
     <div class="row">
       <button type="button" id="go" disabled>Upload</button>
@@ -64,5 +65,6 @@
 </main>
 <script src="/script.js?v=2"></script>
 <script src="/verify-banner.js"></script>
+<script src="/job-progress.js"></script>
 </body>
 </html>

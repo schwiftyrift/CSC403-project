@@ -9,6 +9,10 @@ DATA_DIR = Path(os.environ.get("DATA_DIR", "./data"))
 MODEL = os.environ.get("WHISPER_MODEL", "medium")
 THREADS = int(os.environ.get("WHISPER_THREADS", "4"))
 POLL_SECONDS = 2
+PROGRESS_INTERVAL = 2  # seconds between progress writes, so the database stays quiet
+
+class JobDeleted(Exception):
+    """The user deleted the job while it was being transcribed."""
 
 def connect(data_dir):
     db = sqlite3.connect(data_dir / "accounts.sqlite3", timeout=30)
@@ -45,8 +49,9 @@ def save_transcript(job, text):
     db = connect(DATA_DIR)
     try:
         with db:
-            db.execute("UPDATE jobs SET status = 'done' WHERE job_id = ?", (job["job_id"],))
-            db.execute("INSERT INTO transcripts (id, job_id, text, created_at) VALUES (?, ?, ? ,?)",(str(uuid.uuid4()), job["job_id"], text, time.time()))
+            updated = db.execute("UPDATE jobs SET status = 'done' WHERE job_id = ?", (job["job_id"],))
+            if updated.rowcount:  # zero means the user deleted the job while it ran
+                db.execute("INSERT INTO transcripts (id, job_id, text, created_at) VALUES (?, ?, ? ,?)",(str(uuid.uuid4()), job["job_id"], text, time.time()))
     finally:
         db.close()
 
@@ -57,6 +62,52 @@ def mark_failed(job):
             db.execute("UPDATE jobs SET status = 'failed' WHERE job_id = ?", (job["job_id"],))
     finally:
         db.close()
+
+# Best effort: a busy database or a table the API hasn't created yet must never fail a transcription.
+def write_progress(job, stage, duration=None, processed=0, started=None):
+    now = time.time()
+    try:
+        db = connect(DATA_DIR)
+        try:
+            with db:
+                db.execute("""
+                    INSERT INTO job_progress (job_id, stage, duration_seconds, processed_seconds, started_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(job_id) DO UPDATE SET stage = excluded.stage, duration_seconds = excluded.duration_seconds,
+                    processed_seconds = excluded.processed_seconds, started_at = excluded.started_at, updated_at = excluded.updated_at""",
+                    (job["job_id"], stage, duration, processed, started or now, now))
+        finally:
+            db.close()
+    except sqlite3.IntegrityError:
+        # The foreign key fails only when the job row is gone.
+        raise JobDeleted()
+    except sqlite3.Error as e:
+        print(f"  progress not saved for {job['job_id']}: {e}", flush=True)
+
+def record_finish(job, stage):
+    try:
+        write_progress(job, stage)
+    except JobDeleted:
+        pass
+
+def transcribe_job(model, job, path):
+    write_progress(job, "preparing")
+    segments, info = model.transcribe(str(path))
+    print(f"  language={info.language} duration={info.duration:.1f}s", flush=True)
+    # faster-whisper doesn't raise on a damaged file: it reports no audio and returns no text.
+    if info.duration <= 0:
+        raise ValueError("the file contains no readable audio")
+    started = last_write = time.time()
+    processed = 0.0
+    write_progress(job, "transcribing", info.duration, processed, started)
+    parts = []
+    for segment in segments:  # lazy: the real work happens during this loop
+        parts.append(segment.text.strip())
+        processed = max(processed, segment.end)
+        if time.time() - last_write >= PROGRESS_INTERVAL:
+            write_progress(job, "transcribing", info.duration, processed, started)
+            last_write = time.time()
+    return " ".join(parts)
 
 
 def main():
@@ -75,16 +126,19 @@ def main():
         started = time.time()
 
         try:
-            segments, info = model.transcribe(str(path))
-            print(f"  language={info.language} duration={info.duration:.1f}s", flush=True)
-            text = " ".join(segment.text.strip() for segment in segments)
+            text = transcribe_job(model, job, path)
+        except JobDeleted:
+            print(f"  deleted during transcription: {job['job_id']}", flush=True)
+            continue
         except Exception as e:
             print(f"  FAILED {job['job_id']}: {e}", flush=True)
             mark_failed(job)
+            record_finish(job, "failed")
             continue
 
         print(f"  done in {time.time() - started:.1f}s", flush=True)
         save_transcript(job, text)
+        record_finish(job, "done")
 
 if __name__ == "__main__":
     main()

@@ -28,7 +28,7 @@ token is stored in the database. Logout revokes the current session.
 Email addresses are normalized to lowercase; passwords must be 12-128 characters.
 
 SQLite stores users, sessions, and jobs in `DATA_DIR/accounts.sqlite3`.
-A transcript table is reserved for future automatic transcription; existing records are preserved.
+Transcripts are stored in `transcripts` and transcription progress in `job_progress`; existing records are preserved.
 Uploaded bytes live in `DATA_DIR/uploads`. The default DATA_DIR is `./data`;
 Docker uses `/data` in the existing persistent volume. Back up the database and
 uploads together while the service is stopped.
@@ -43,10 +43,15 @@ All job routes except `/jobs/limits` require login and check ownership, includin
 Existing JSON upload records remain on disk but are not assigned to any account;
 an explicit owner mapping is required before migrating old uploads.
 
-Automatic transcription is not implemented yet. The current demonstration covers
-registration, login/logout, private file storage, downloads, upload history, and deletion.
-There is no manual transcript entry or transcript API; a future transcription
-integration can attach generated text to uploaded jobs.
+## Transcription progress
+
+The worker (`Transcribe/worker.py`) transcribes uploads automatically, one at a time, in upload
+order. Jobs move through `queued`, `preparing` (decoding audio and detecting language, so no percent
+is available yet), `transcribing`, and then `done` or `failed`. A file with no readable audio fails.
+
+While transcribing, the worker stores progress in `job_progress` every 2 seconds. `GET /jobs/activity`
+turns that into a percent and an estimated time left, and keeps finished jobs for 24 hours. A page
+gets the progress panel and milestone notifications by including `job-progress.js` with one script tag.
 
 ## Upload limits
 
@@ -109,8 +114,10 @@ one a minute and five a day per account; failed sends do not count.
 | POST | /jobs | Upload multipart `file` |
 | GET | /jobs/limits | Allowed extensions and max upload size (no login needed) |
 | GET | /jobs | Current user's uploads |
+| GET | /jobs/activity | Unfinished and recently finished jobs with stage, percent, and estimated time |
 | GET | /jobs/{id} | Upload metadata |
 | GET | /jobs/{id}/file | Download original file |
+| GET | /jobs/{id}/transcript.txt | Download the transcript as a text file |
 | DELETE | /jobs/{id} | Delete one upload, its stored file, and its transcript |
 | DELETE | /jobs | Delete all of the current user's uploads and transcripts |
 
@@ -146,5 +153,5 @@ Never accept an owner ID from the browser as proof of authorization.
   your mail provider has verified.
 
 Before public deployment, configure HTTPS, secure cookies, and proxy-level login
-rate limiting. MFA, account deletion, storage
-quotas, and automated transcription are not implemented in this initial foundation.
+rate limiting. MFA, account deletion, and storage
+quotas are not implemented in this initial foundation.
