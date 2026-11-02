@@ -69,9 +69,11 @@ function render(job) {
   return article;
 }
 
+let jobs = [];
+
 async function loadHistory(append = false) {
   const request = ++loadId;
-  const jobs = await api(`/jobs?limit=${PAGE_SIZE}&offset=${append ? offset : 0}`);
+  jobs = await api(`/jobs?limit=${PAGE_SIZE}&offset=${append ? offset : 0}`);
   if (request !== loadId) return; // a newer load replaced this one
   if (!append) { offset = 0; list.replaceChildren(); }
   offset += jobs.length;
@@ -154,6 +156,102 @@ $("gridView").addEventListener("click", () => setView("grid"));
 let savedView = "list";
 try { savedView = localStorage.getItem(VIEW_KEY) || "list"; } catch (_) {}
 setView(savedView);
+
+let currentSort = "alphaSort";
+let ascending = true;
+
+const alphaSortButton = $("alphaSort");
+const alphaAscButton = $("alphaSortAsc");
+const alphaDescButton = $("alphaSortDesc");
+
+alphaSortButton.addEventListener("click", () => {
+  ascending = !ascending;
+  if (ascending) {
+    alphaAscButton.style.display = "none";
+    alphaDescButton.style.display = "";
+  } else {
+    alphaAscButton.style.display = "";
+    alphaDescButton.style.display = "none";
+  }
+
+  setSort("alphaSort");
+});
+
+const dateSortButton = $("dateSort");
+const dateAscButton = $("dateSortAsc");
+const dateDescButton = $("dateSortDesc");
+
+dateSortButton.addEventListener("click", () => {
+  ascending = !ascending;
+
+  if (ascending) {
+    dateAscButton.style.display = "";
+    dateDescButton.style.display = "none";
+} else {
+    dateAscButton.style.display = "none";
+    dateDescButton.style.display = "";
+  }
+
+  setSort("dateSort");
+});
+
+const sizeSortButton = $("sizeSort");
+const sizeAscButton = $("sizeSortAsc");
+const sizeDescButton = $("sizeSortDesc");
+
+sizeSortButton.addEventListener("click", () => {
+  ascending = !ascending;
+
+  if (ascending) {
+    sizeAscButton.style.display = "";
+    sizeDescButton.style.display = "none";
+  } else {
+    sizeAscButton.style.display = "none";
+    sizeDescButton.style.display = "";
+  }
+
+  setSort("sizeSort");
+});
+
+function setSort(sort) {
+  currentSort = sort;
+
+  if (sort === "alphaSort") {
+    $("alphaSort").setAttribute("aria-pressed", "true");
+    $("dateSort").setAttribute("aria-pressed", "false");
+    $("sizeSort").setAttribute("aria-pressed", "false");
+    
+    jobs.sort((a, b) =>
+      ascending
+        ? a.filename.localeCompare(b.filename)
+        : b.filename.localeCompare(a.filename)
+    );
+  } 
+  
+  if (sort === "dateSort") {
+    $("alphaSort").setAttribute("aria-pressed", "false");
+    $("dateSort").setAttribute("aria-pressed", "true");
+    $("sizeSort").setAttribute("aria-pressed", "false");
+    jobs.sort((a, b) =>
+      ascending
+        ? a.uploaded_at - b.uploaded_at
+        : b.uploaded_at - a.uploaded_at
+    );
+  }
+
+  if (sort === "sizeSort") {
+    $("alphaSort").setAttribute("aria-pressed", "false");
+    $("dateSort").setAttribute("aria-pressed", "false");
+    $("sizeSort").setAttribute("aria-pressed", "true");
+    jobs.sort((a, b) =>
+      ascending
+        ? a.size_bytes - b.size_bytes
+        : b.size_bytes - a.size_bytes
+    );
+  }
+  list.replaceChildren();
+  list.append(...jobs.map(render));
+}
 
 $("refreshHistory").addEventListener("click", () => { say(""); loadHistory().catch(error => say(error.message, "error")); });
 $("moreHistory").addEventListener("click", () => loadHistory(true).catch(error => say(error.message, "error")));
