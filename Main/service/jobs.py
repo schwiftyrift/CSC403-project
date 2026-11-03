@@ -15,6 +15,7 @@ router = APIRouter(tags=["jobs"])
 ALLOWED = (".mp3", ".wav", ".m4a", ".mp4", ".mov")
 DEFAULT_MAX_MB = 500  # the MAX_UPLOAD_MB environment variable overrides this
 FORMATS = ", ".join(ALLOWED)
+MEDIA_TYPES = {".mp3": "audio/mpeg", ".wav": "audio/wav", ".m4a": "audio/mp4", ".mp4": "video/mp4", ".mov": "video/quicktime"}
 PUBLIC_COLUMNS = "job_id, filename, size_bytes, status, uploaded_at"
 RECENT_SECONDS = 60 * 60 * 24  # finished jobs stay in /jobs/activity this long, for "finished while you were away"
 STALLED_SECONDS = 180  # one Whisper window on a slow CPU can legitimately take a minute or more
@@ -167,6 +168,28 @@ def download_transcript(job_id: uuid.UUID, request: Request, user=Depends(curren
     name = f"{Path(job['filename']).stem or 'transcript'}.txt"
     return Response(row["text"].strip() + "\n", media_type="text/plain; charset=utf-8",
                     headers={"Content-Disposition": f"attachment; filename*=utf-8''{quote(name)}"})
+
+@router.get("/jobs/{job_id}/segments")
+def transcript_segments(job_id: uuid.UUID, request: Request, user=Depends(current_user)):
+    """The newest transcript's timestamped segments, oldest first. Transcripts made before
+    timestamps were saved have none, so the page falls back to the plain text."""
+    with connect(request.app.state.data_dir) as db:
+        owned_job(db, job_id, user["id"])
+        transcript = db.execute("SELECT id FROM transcripts WHERE job_id=? ORDER BY created_at DESC LIMIT 1", (str(job_id),)).fetchone()
+        if transcript is None:
+            raise HTTPException(404, "The transcript isn't ready yet. Try again once transcription finishes.")
+        rows = db.execute("SELECT start_seconds AS start, end_seconds AS end, text FROM transcript_segments WHERE transcript_id=? ORDER BY position", (transcript["id"],))
+        return {"segments": [dict(row) for row in rows]}
+
+@router.get("/jobs/{job_id}/media")
+def stream_media(job_id: uuid.UUID, request: Request, user=Depends(current_user)):
+    """The upload for an <audio> player: inline, with its real type and range support for seeking."""
+    with connect(request.app.state.data_dir) as db:
+        row = owned_job(db, job_id, user["id"])
+    path = request.app.state.data_dir / "uploads" / row["storage_name"]
+    if not path.is_file():
+        raise HTTPException(404, "file not found")
+    return FileResponse(path, media_type=MEDIA_TYPES.get(path.suffix.lower(), "application/octet-stream"))
 
 @router.post("/jobs/{job_id}/retry")
 def retry_job(job_id: uuid.UUID, request: Request, user=Depends(current_user)):

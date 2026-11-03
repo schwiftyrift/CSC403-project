@@ -45,13 +45,21 @@ def claim_job():
     
     return job
 
-def save_transcript(job, text):
+def save_transcript(job, text, segments=()):
+    """segments: (start_seconds, end_seconds, text) per Whisper segment, for clickable timestamps."""
     db = connect(DATA_DIR)
     try:
         with db:
             updated = db.execute("UPDATE jobs SET status = 'done' WHERE job_id = ?", (job["job_id"],))
             if updated.rowcount:  # zero means the user deleted the job while it ran
-                db.execute("INSERT INTO transcripts (id, job_id, text, created_at) VALUES (?, ?, ? ,?)",(str(uuid.uuid4()), job["job_id"], text, time.time()))
+                transcript_id = str(uuid.uuid4())
+                db.execute("INSERT INTO transcripts (id, job_id, text, created_at) VALUES (?, ?, ? ,?)",(transcript_id, job["job_id"], text, time.time()))
+                try:
+                    db.executemany("INSERT INTO transcript_segments (transcript_id, position, start_seconds, end_seconds, text) VALUES (?, ?, ?, ?, ?)",
+                                   [(transcript_id, i, start, end, part) for i, (start, end, part) in enumerate(segments)])
+                except sqlite3.OperationalError as e:
+                    # An API too old to have created the table: keep the plain transcript rather than lose it.
+                    print(f"  timestamps not saved for {job['job_id']}: {e}", flush=True)
     finally:
         db.close()
 
@@ -102,12 +110,14 @@ def transcribe_job(model, job, path):
     write_progress(job, "transcribing", info.duration, processed, started)
     parts = []
     for segment in segments:  # lazy: the real work happens during this loop
-        parts.append(segment.text.strip())
+        text = segment.text.strip()
+        if text:
+            parts.append((segment.start, segment.end, text))
         processed = max(processed, segment.end)
         if time.time() - last_write >= PROGRESS_INTERVAL:
             write_progress(job, "transcribing", info.duration, processed, started)
             last_write = time.time()
-    return " ".join(parts)
+    return " ".join(part for _, _, part in parts), parts
 
 
 def main():
@@ -126,7 +136,7 @@ def main():
         started = time.time()
 
         try:
-            text = transcribe_job(model, job, path)
+            text, segments = transcribe_job(model, job, path)
         except JobDeleted:
             print(f"  deleted during transcription: {job['job_id']}", flush=True)
             continue
@@ -137,7 +147,7 @@ def main():
             continue
 
         print(f"  done in {time.time() - started:.1f}s", flush=True)
-        save_transcript(job, text)
+        save_transcript(job, text, segments)
         record_finish(job, "done")
 
 if __name__ == "__main__":

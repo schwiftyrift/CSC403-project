@@ -20,6 +20,12 @@ CREATE TABLE IF NOT EXISTS transcripts (
  id TEXT PRIMARY KEY, job_id TEXT NOT NULL REFERENCES jobs(job_id) ON DELETE CASCADE,
  text TEXT NOT NULL, created_at REAL NOT NULL
 );
+-- One row per Whisper segment (roughly a sentence), for the transcript page's clickable timestamps.
+CREATE TABLE IF NOT EXISTS transcript_segments (
+ transcript_id TEXT NOT NULL REFERENCES transcripts(id) ON DELETE CASCADE,
+ position INTEGER NOT NULL, start_seconds REAL NOT NULL, end_seconds REAL NOT NULL, text TEXT NOT NULL,
+ PRIMARY KEY (transcript_id, position)
+);
 CREATE TABLE IF NOT EXISTS upload_hashes (
  job_id TEXT PRIMARY KEY REFERENCES jobs(job_id) ON DELETE CASCADE,
  user_id TEXT NOT NULL, sha256 TEXT NOT NULL

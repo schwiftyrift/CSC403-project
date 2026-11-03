@@ -29,9 +29,11 @@ class FakeModel:
 
     def transcribe(self, path):
         def segments():
+            start = 0.0
             for end in self.ends:
-                yield SimpleNamespace(text=f" {end} ", end=end)
+                yield SimpleNamespace(text=f" {end} ", start=start, end=end)
                 self.on_segment(end)
+                start = end
         return segments(), SimpleNamespace(language="en", duration=self.duration)
 
 def activity(client):
@@ -93,7 +95,9 @@ def test_worker_reports_progress_then_finish(client, worker):
     job = worker.claim_job()
     seen = []
     model = FakeModel([25.0, 50.0], 100.0, on_segment=lambda end: seen.append(activity(client)[job_id]["percent"]))
-    assert worker.transcribe_job(model, job, "ignored") == "25.0 50.0"
+    text, segments = worker.transcribe_job(model, job, "ignored")
+    assert text == "25.0 50.0"
+    assert segments == [(0.0, 25.0, "25.0"), (25.0, 50.0, "50.0")]
     assert seen == [25, 50]
     worker.save_transcript(job, "words")
     worker.record_finish(job, "done")
@@ -140,7 +144,7 @@ def test_missing_progress_table_does_not_fail_the_job(client, worker):
     job = worker.claim_job()
     with connect(client.app.state.data_dir) as db:
         db.execute("DROP TABLE job_progress")
-    assert worker.transcribe_job(FakeModel([1.0], 2.0), job, "ignored") == "1.0"
+    assert worker.transcribe_job(FakeModel([1.0], 2.0), job, "ignored")[0] == "1.0"
 
 def test_deleting_a_job_removes_its_progress(client, worker):
     register(client)
