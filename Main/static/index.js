@@ -1,4 +1,4 @@
-import { $, api, humanSize, say } from "./utils.js";
+import { $, api, humanSize, say, setAccount } from "./utils.js";
 
 const API_URL = "/jobs";
 const ALLOWED = [".mp3", ".wav", ".m4a", ".mp4", ".mov"];
@@ -16,13 +16,13 @@ function setFile(file) {
   result.className = ""; result.textContent = "";
   bar.className = ""; bar.value = 0;
   const problem = limits && problemWith(file);
-  if (problem) { clearFile(); say(problem, "error"); return; }
+  if (problem) { clearFile(); say(statusEl, problem, "error"); return; }
   selected = file;
   $("name").textContent = file.name;
   $("size").textContent = humanSize(file.size);
   chosen.classList.add("show");
   go.disabled = !signedIn;
-  say("");
+  say(statusEl, "");
 }
 
 function clearFile() {
