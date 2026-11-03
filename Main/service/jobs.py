@@ -213,3 +213,23 @@ def delete_all_jobs(request: Request, user=Depends(current_user)):
             db.execute("DELETE FROM jobs WHERE job_id=? AND user_id=?", (row["job_id"], user["id"]))
     if failed:
         raise HTTPException(409, f"{failed} file(s) are in use and were not deleted; try again")
+
+@router.get("/transcripts/latest")
+def latest_transcript(request: Request, user=Depends(current_user)):
+    with connect(request.app.state.data_dir) as db:
+        row = db.execute("""
+            SELECT
+                t.id,
+                t.job_id,
+                t.text,
+                t.created_at,
+                j.filename
+            FROM transcripts t
+            JOIN jobs j ON j.job_id = t.job_id
+            WHERE j.user_id = ?
+            ORDER BY t.created_at DESC
+            LIMIT 1
+            """, (user["id"],)).fetchone()
+        if row is None:
+            raise HTTPException(404, "No completed transcript found.")
+        return dict(row)

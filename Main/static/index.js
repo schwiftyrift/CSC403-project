@@ -9,19 +9,20 @@ const transcribe = $("transcribe");
 
 let selected = null;
 let signedIn = false;
+let limits = null; // loaded from GET /jobs/limits; the server checks again on upload
+
 
 function setFile(file) {
   result.className = ""; result.textContent = "";
   bar.className = ""; bar.value = 0;
-  const ext = "." + (file.name.split(".").pop() || "").toLowerCase();
-  if (!ALLOWED.includes(ext)) { clearFile(); say(statusEl, "Unsupported file type. Use " + ALLOWED.join(", ") + ".", "error"); return; }
-  if (file.size > MAX_MB * 1024 * 1024) { clearFile(); say(statusEl, "File is larger than " + MAX_MB + " MB.", "error"); return; }
+  const problem = limits && problemWith(file);
+  if (problem) { clearFile(); say(problem, "error"); return; }
   selected = file;
   $("name").textContent = file.name;
   $("size").textContent = humanSize(file.size);
   chosen.classList.add("show");
   go.disabled = !signedIn;
-  say(statusEl, "");
+  say("");
 }
 
 function clearFile() {
@@ -56,6 +57,9 @@ api("/auth/me")
         go.disabled = true;
     });
 
+api("/jobs/limits").then(applyLimits).catch(() => {}); // without limits, the server still validates
+
+
 go.addEventListener("click", () => {
   if (!selected || !signedIn) return;
   const form = new FormData();
@@ -88,3 +92,22 @@ go.addEventListener("click", () => {
 transcribe.addEventListener("click", ()=> {
   window.location.href = "/transcribe.html";
 });
+
+function applyLimits(data) {
+  limits = data;
+  input.accept = limits.extensions.join(",");
+  $("dropHint").textContent = "or click to choose one \u00b7 " + limits.extensions.map(e => e.slice(1)).join(", ") +
+    " \u00b7 up to " + humanSize(limits.max_bytes);
+}
+
+// Messages match the server's wording in service/jobs.py.
+function problemWith(file) {
+  const dot = file.name.lastIndexOf(".");
+  const ext = dot > 0 && dot < file.name.length - 1 ? file.name.slice(dot).toLowerCase() : "";
+  const formats = limits.extensions.join(", ");
+  if (!ext) return `The file has no extension. Rename it to end in one of: ${formats}.`;
+  if (!limits.extensions.includes(ext)) return `${ext} files are not supported. Upload one of: ${formats}. Try converting the file to ${limits.extensions[0]}.`;
+  if (file.size === 0) return "The file is empty. Choose a file that contains audio or video.";
+  if (file.size > limits.max_bytes) return `${file.name} is ${humanSize(file.size)}, but the limit is ${humanSize(limits.max_bytes)}. Trim or compress the recording and try again.`;
+  return null;
+}
