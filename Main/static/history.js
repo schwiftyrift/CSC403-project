@@ -46,6 +46,14 @@ function transcriptButton(job) {
   return transcript;
 }
 
+function retryButton(job) {
+  const retry = document.createElement("button");
+  retry.type = "button"; retry.className = "secondary retry"; retry.textContent = "Retry";
+  retry.setAttribute("aria-label", `Retry transcribing ${job.filename}`);
+  retry.addEventListener("click", () => retryJob(job, retry));
+  return retry;
+}
+
 function render(job) {
   const article = document.createElement("article");
   article.dataset.jobId = job.job_id;
@@ -63,6 +71,9 @@ function render(job) {
   actions.append(link);
   if (job.transcript_ready) {
     actions.append(transcriptButton(job));
+  }
+  if (job.status === "failed") {
+    actions.append(retryButton(job));
   }
   actions.append(remove);
   article.append(title, details, status, actions);
@@ -109,6 +120,24 @@ async function downloadTranscript(job, button) {
   } finally {
     button.disabled = false;
   }
+}
+
+async function retryJob(job, button) {
+  button.disabled = true;
+  try {
+    await api(`/jobs/${job.job_id}/retry`, {method: "POST"});
+  } catch (error) {
+    button.disabled = false;
+    say(error instanceof TypeError ? "Could not reach the server. Check your connection and try again." : error.message, "error");
+    return;
+  }
+  job.status = "queued"; // kept in sync so re-sorting doesn't bring the button back
+  const article = button.closest("article");
+  article.querySelector(".job-status").textContent = STATUS_TEXT.queued;
+  article.querySelector(".danger").focus(); // the Retry button is about to disappear
+  button.remove();
+  say(`${job.filename} is back in the queue and will be transcribed again.`, "ok");
+  window.dispatchEvent(new Event("jobs:refresh")); // job-progress.js polls now instead of waiting
 }
 
 async function deleteOne(job, article, button) {
@@ -279,6 +308,15 @@ window.addEventListener("jobs:update", (event) => {
     if (job.status === "done" && !article.querySelector(".transcript-download")) {
       article.querySelector(".actions").insertBefore(transcriptButton(job), article.querySelector(".danger"));
     }
+    // Failed while the page was open, or retried in another tab.
+    const retry = article.querySelector(".retry");
+    if (job.status === "failed" && !retry) {
+      article.querySelector(".actions").insertBefore(retryButton(job), article.querySelector(".danger"));
+    } else if (job.status !== "failed" && retry) {
+      retry.remove();
+    }
+    const listed = jobs.find(j => j.job_id === job.job_id);
+    if (listed) listed.status = job.status;
   }
 });
 

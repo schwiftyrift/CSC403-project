@@ -168,6 +168,21 @@ def download_transcript(job_id: uuid.UUID, request: Request, user=Depends(curren
     return Response(row["text"].strip() + "\n", media_type="text/plain; charset=utf-8",
                     headers={"Content-Disposition": f"attachment; filename*=utf-8''{quote(name)}"})
 
+@router.post("/jobs/{job_id}/retry")
+def retry_job(job_id: uuid.UUID, request: Request, user=Depends(current_user)):
+    """Put a failed job back in the queue; the worker picks it up like a new upload."""
+    with connect(request.app.state.data_dir) as db:
+        job = owned_job(db, job_id, user["id"])
+        if not (request.app.state.data_dir / "uploads" / job["storage_name"]).is_file():
+            raise HTTPException(409, "The uploaded file is missing, so it can't be transcribed. Delete this upload and upload the file again.")
+        # Checking the status in the UPDATE itself means two clicks can't both requeue it.
+        retried = db.execute("UPDATE jobs SET status='queued' WHERE job_id=? AND status='failed'", (str(job_id),))
+        if not retried.rowcount:
+            raise HTTPException(409, "Only failed transcriptions can be retried.")
+        db.execute("DELETE FROM job_progress WHERE job_id=?", (str(job_id),))  # the old attempt's progress
+        row = owned_job(db, job_id, user["id"])
+        return {key: row[key] for key in PUBLIC_COLUMNS.split(", ")}
+
 def remove_files(uploads, job_id):
     """Delete the upload and any sidecar files (e.g. <job_id>.transcript.json)."""
     for path in uploads.glob(f"{job_id}.*"):

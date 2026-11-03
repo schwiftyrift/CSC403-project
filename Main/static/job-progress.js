@@ -111,7 +111,9 @@
     baselinePending = false;
     const next = {}; // jobs that left the response are dropped, so storage can't grow forever
     for (const job of jobs) {
-      const entry = seen[job.job_id] || {rank: 0, dismissed: false};
+      let entry = seen[job.job_id] || {rank: 0, dismissed: false};
+      // A failed job that was retried is active again, so announce its milestones afresh.
+      if (entry.rank === RANK.finished && isActive(job)) entry = {rank: 0, dismissed: false};
       const milestone = milestoneOf(job);
       if (RANK[milestone] > entry.rank) {
         entry.rank = RANK[milestone];
