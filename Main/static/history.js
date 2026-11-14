@@ -38,13 +38,58 @@ function updateEmptyState() {
   $("deleteAll").disabled = empty;
 }
 
-function transcriptButton(job) {
-  const transcript = document.createElement("button");
-  transcript.type = "button"; transcript.className = "secondary transcript-download"; transcript.textContent = "Download transcript";
-  transcript.setAttribute("aria-label", `Download the transcript of ${job.filename} as a text file`);
-  transcript.addEventListener("click", () => downloadTranscript(job, transcript));
-  return transcript;
+const FORMATS = {txt: {label: "Text (.txt)", noun: "a text file"}, docx: {label: "Word (.docx)", noun: "a Word document"}};
+
+function setMenuOpen(menu, open) {
+  menu.querySelector(".menu-items").hidden = !open;
+  menu.querySelector(".menu-toggle").setAttribute("aria-expanded", String(open));
 }
+
+// A disclosure (button + list of buttons), so Tab moves through the choices as usual.
+function transcriptMenu(job) {
+  const menu = document.createElement("div");
+  menu.className = "download-menu transcript-download";
+  const toggle = document.createElement("button");
+  toggle.type = "button"; toggle.className = "secondary menu-toggle"; toggle.textContent = "Download transcript ▾";
+  toggle.setAttribute("aria-label", `Download the transcript of ${job.filename}`);
+  toggle.setAttribute("aria-expanded", "false");
+  const items = document.createElement("div");
+  items.className = "menu-items"; items.id = `download-menu-${job.job_id}`; items.hidden = true;
+  toggle.setAttribute("aria-controls", items.id);
+  for (const [format, {label, noun}] of Object.entries(FORMATS)) {
+    const item = document.createElement("button");
+    item.type = "button"; item.className = "secondary"; item.textContent = label;
+    item.setAttribute("aria-label", `Download the transcript of ${job.filename} as ${noun}`);
+    item.addEventListener("click", () => {
+      setMenuOpen(menu, false);
+      toggle.focus();
+      downloadTranscript(job, toggle, format);
+    });
+    items.append(item);
+  }
+  toggle.addEventListener("click", () => {
+    const open = items.hidden;
+    setMenuOpen(menu, open);
+    if (open) items.querySelector("button").focus();
+  });
+  menu.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !items.hidden) { setMenuOpen(menu, false); toggle.focus(); }
+  });
+  // Tabbing away closes it. A null relatedTarget (Safari doesn't focus clicked buttons) is left
+  // to the document click listener, or clicking a choice would close the menu before it registers.
+  menu.addEventListener("focusout", (event) => {
+    if (event.relatedTarget && !menu.contains(event.relatedTarget)) setMenuOpen(menu, false);
+  });
+  menu.append(toggle, items);
+  return menu;
+}
+
+// One listener for every row: a click outside an open menu closes it.
+document.addEventListener("click", (event) => {
+  for (const menu of document.querySelectorAll(".download-menu")) {
+    if (!menu.contains(event.target)) setMenuOpen(menu, false);
+  }
+});
 
 function retryButton(job) {
   const retry = document.createElement("button");
@@ -70,7 +115,7 @@ function render(job) {
   remove.addEventListener("click", () => deleteOne(job, article, remove));
   actions.append(link);
   if (job.transcript_ready) {
-    actions.append(transcriptButton(job));
+    actions.append(transcriptMenu(job));
   }
   if (job.status === "failed") {
     actions.append(retryButton(job));
@@ -95,11 +140,11 @@ async function loadHistory(append = false) {
 }
 
 // Fetched rather than linked so a failure shows a message here instead of a raw error page.
-async function downloadTranscript(job, button) {
+async function downloadTranscript(job, button, format = "txt") {
   button.disabled = true;
   say(`Preparing the transcript of ${job.filename}...`);
   try {
-    const response = await fetch(`/jobs/${job.job_id}/transcript.txt`);
+    const response = await fetch(`/jobs/${job.job_id}/transcript.${format}`);
     if (response.status === 401) { window.location.replace("/login.html"); return; }
     if (!response.ok) {
       const body = await response.json().catch(() => ({}));
@@ -110,10 +155,10 @@ async function downloadTranscript(job, button) {
     const url = URL.createObjectURL(await response.blob());
     const save = document.createElement("a");
     save.href = url;
-    save.download = job.filename.replace(/\.[^.]+$/, "") + ".txt";
+    save.download = job.filename.replace(/\.[^.]+$/, "") + "." + format;
     save.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-    say(`Downloaded the transcript of ${job.filename}.`, "ok");
+    say(`Downloaded the transcript of ${job.filename} as ${FORMATS[format].noun}.`, "ok");
   } catch (error) {
     // fetch throws a TypeError when the server cannot be reached at all.
     say(error instanceof TypeError ? "Could not reach the server. Check your connection and try again." : error.message, "error");
@@ -306,7 +351,7 @@ window.addEventListener("jobs:update", (event) => {
     article.querySelector(".job-status").textContent = job.percent !== null && job.status === "processing"
       ? `Transcribing: ${job.percent}%` : STATUS_TEXT[job.status] || job.status;
     if (job.status === "done" && !article.querySelector(".transcript-download")) {
-      article.querySelector(".actions").insertBefore(transcriptButton(job), article.querySelector(".danger"));
+      article.querySelector(".actions").insertBefore(transcriptMenu(job), article.querySelector(".danger"));
     }
     // Failed while the page was open, or retried in another tab.
     const retry = article.querySelector(".retry");

@@ -53,6 +53,21 @@ While transcribing, the worker stores progress in `job_progress` every 2 seconds
 turns that into a percent and an estimated time left, and keeps finished jobs for 24 hours. A page
 gets the progress panel and milestone notifications by including `job-progress.js` with one script tag.
 
+## Transcript downloads
+
+On the history page, "Download transcript" opens a menu offering a text file (`transcript.txt`)
+or a Word document (`transcript.docx`). Both routes follow the same rules: they need a login,
+return 404 for other accounts' jobs, and use the newest transcript when a job was retried.
+
+The Word document has the upload's name as its title, then the original file, upload time
+(in UTC, because the server doesn't know the reader's timezone), length, word count, and creation time.
+Whisper's segments are joined into paragraphs at pauses of 2 seconds or more, or at a
+sentence end once a paragraph passes a minute (and at two minutes regardless). Each paragraph starts with its timestamp. Longer recordings are split
+into sections ("Part 2 (5:10)") at pauses of 6 seconds or more, or every 5 minutes. The sections
+are time-based; there is no topic detection. The thresholds are constants at the top of
+`service/transcript_doc.py`. Transcripts made before timestamps were saved still download: the
+plain text is split into paragraphs without timestamps, and a note says why.
+
 ## Upload limits
 
 Allowed: .mp3, .wav, .m4a, .mp4, .mov. Max size: 500 MB (set `MAX_UPLOAD_MB` to change).
@@ -118,6 +133,7 @@ one a minute and five a day per account; failed sends do not count.
 | GET | /jobs/{id} | Upload metadata |
 | GET | /jobs/{id}/file | Download original file |
 | GET | /jobs/{id}/transcript.txt | Download the transcript as a text file |
+| GET | /jobs/{id}/transcript.docx | Download the transcript as a formatted Word document |
 | DELETE | /jobs/{id} | Delete one upload, its stored file, and its transcript |
 | DELETE | /jobs | Delete all of the current user's uploads and transcripts |
 

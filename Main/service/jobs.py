@@ -2,6 +2,7 @@
 import hashlib
 import time
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import quote
 
@@ -9,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response,
 from fastapi.responses import FileResponse
 from .auth import current_user
 from .database import connect
+from .transcript_doc import DOCX_TYPE, build_docx, clock, paragraphs
 
 router = APIRouter(tags=["jobs"])
 # Single source of truth for upload limits; the UI reads these from GET /jobs/limits.
@@ -26,6 +28,24 @@ def owned_job(db, job_id, user_id):
     if row is None:
         raise HTTPException(404, "job not found")
     return row
+
+NOT_READY = "The transcript isn't ready yet. Try again once transcription finishes."
+SEGMENTS_SQL = "SELECT start_seconds AS start, end_seconds AS end, text FROM transcript_segments WHERE transcript_id=? ORDER BY position"
+
+def newest_transcript(db, job_id, user_id):
+    """(job row, newest transcript row). The 404s match for missing, foreign, and unfinished jobs."""
+    job = owned_job(db, job_id, user_id)
+    row = db.execute("SELECT id, text, created_at FROM transcripts WHERE job_id=? ORDER BY created_at DESC LIMIT 1", (str(job_id),)).fetchone()
+    if row is None:
+        raise HTTPException(404, NOT_READY)
+    return job, row
+
+def attachment(name):
+    return {"Content-Disposition": f"attachment; filename*=utf-8''{quote(name)}"}
+
+def utc(timestamp):
+    # The server doesn't know the user's timezone, so the document says UTC explicitly.
+    return datetime.fromtimestamp(timestamp, timezone.utc).strftime("%B %d, %Y %H:%M UTC")
 
 def progress_fields(row, now):
     """Turn a jobs + job_progress row into what the progress UI shows."""
@@ -161,25 +181,33 @@ def download(job_id: uuid.UUID, request: Request, user=Depends(current_user)):
 def download_transcript(job_id: uuid.UUID, request: Request, user=Depends(current_user)):
     """The newest transcript for one of the user's jobs, as a .txt download named after the upload."""
     with connect(request.app.state.data_dir) as db:
-        job = owned_job(db, job_id, user["id"])
-        row = db.execute("SELECT text FROM transcripts WHERE job_id=? ORDER BY created_at DESC LIMIT 1", (str(job_id),)).fetchone()
-    if row is None:
-        raise HTTPException(404, "The transcript isn't ready yet. Try again once transcription finishes.")
+        job, row = newest_transcript(db, job_id, user["id"])
     name = f"{Path(job['filename']).stem or 'transcript'}.txt"
-    return Response(row["text"].strip() + "\n", media_type="text/plain; charset=utf-8",
-                    headers={"Content-Disposition": f"attachment; filename*=utf-8''{quote(name)}"})
+    return Response(row["text"].strip() + "\n", media_type="text/plain; charset=utf-8", headers=attachment(name))
+
+@router.get("/jobs/{job_id}/transcript.docx")
+def download_transcript_docx(job_id: uuid.UUID, request: Request, user=Depends(current_user)):
+    """The newest transcript as a Word document (US-23): title, metadata, sections, and timestamped paragraphs."""
+    with connect(request.app.state.data_dir) as db:
+        job, row = newest_transcript(db, job_id, user["id"])
+        segments = [dict(segment) for segment in db.execute(SEGMENTS_SQL, (row["id"],))]
+    timed = bool(paragraphs(segments))  # all-blank segments count as none
+    stem = Path(job["filename"]).stem or "transcript"
+    metadata = [("Original file", job["filename"]), ("Uploaded", utc(job["uploaded_at"]))]
+    if timed:
+        metadata.append(("Length", clock(segments[-1]["end"])))
+    metadata += [("Words", f"{len(row['text'].split()):,}"), ("Generated", utc(time.time()))]
+    if not timed:
+        metadata.append(("Note", "Timestamps aren't available for this transcript because it was made before they were saved."))
+    return Response(build_docx(stem, metadata, segments, row["text"]), media_type=DOCX_TYPE, headers=attachment(f"{stem}.docx"))
 
 @router.get("/jobs/{job_id}/segments")
 def transcript_segments(job_id: uuid.UUID, request: Request, user=Depends(current_user)):
     """The newest transcript's timestamped segments, oldest first. Transcripts made before
     timestamps were saved have none, so the page falls back to the plain text."""
     with connect(request.app.state.data_dir) as db:
-        owned_job(db, job_id, user["id"])
-        transcript = db.execute("SELECT id FROM transcripts WHERE job_id=? ORDER BY created_at DESC LIMIT 1", (str(job_id),)).fetchone()
-        if transcript is None:
-            raise HTTPException(404, "The transcript isn't ready yet. Try again once transcription finishes.")
-        rows = db.execute("SELECT start_seconds AS start, end_seconds AS end, text FROM transcript_segments WHERE transcript_id=? ORDER BY position", (transcript["id"],))
-        return {"segments": [dict(row) for row in rows]}
+        _, transcript = newest_transcript(db, job_id, user["id"])
+        return {"segments": [dict(row) for row in db.execute(SEGMENTS_SQL, (transcript["id"],))]}
 
 @router.get("/jobs/{job_id}/media")
 def stream_media(job_id: uuid.UUID, request: Request, user=Depends(current_user)):

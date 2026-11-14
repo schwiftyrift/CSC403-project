@@ -508,6 +508,18 @@ button.danger {
 #uploadProgressText:empty { display: none; }
 #historyList .job-status { color: var(--text); }
 
+/* Transcript download format menu (US-23) */
+.download-menu { position: relative; display: inline-block; }
+.download-menu .menu-items {
+    position: absolute; z-index: 10; top: 100%; left: 0; min-width: 100%; margin-top: .25rem;
+    display: flex; flex-direction: column; gap: .25rem; padding: .25rem;
+    background: var(--card); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.2);
+}
+.download-menu .menu-items[hidden] { display: none; }
+.download-menu .menu-items button { text-align: left; white-space: nowrap; }
+/* Grid cards are narrow; open the menu leftward so it stays on screen at the right edge. */
+#historyList.grid-view .download-menu .menu-items { left: auto; right: 0; }
+
 
 /* synced transcript player (transcript-player.js) */
 .transcript-audio { width: 100%; margin: .5rem 0; }
