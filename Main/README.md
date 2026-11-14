@@ -28,7 +28,8 @@ token is stored in the database. Logout revokes the current session.
 Email addresses are normalized to lowercase; passwords must be 12-128 characters.
 
 SQLite stores users, sessions, and jobs in `DATA_DIR/accounts.sqlite3`.
-Transcripts are stored in `transcripts` and transcription progress in `job_progress`; existing records are preserved.
+Transcripts are stored in `transcripts`, their timestamps in `transcript_segments` and `transcript_words`,
+and transcription progress in `job_progress`; existing records are preserved.
 Uploaded bytes live in `DATA_DIR/uploads`. The default DATA_DIR is `./data`;
 Docker uses `/data` in the existing persistent volume. Back up the database and
 uploads together while the service is stopped.
@@ -67,6 +68,21 @@ into sections ("Part 2 (5:10)") at pauses of 6 seconds or more, or every 5 minut
 are time-based; there is no topic detection. The thresholds are constants at the top of
 `service/transcript_doc.py`. Transcripts made before timestamps were saved still download: the
 plain text is split into paragraphs without timestamps, and a note says why.
+
+### Captions
+
+The same menu offers captions as SubRip (`captions.srt`, for video editors) or WebVTT
+(`captions.vtt`, for browsers and web players). The worker asks Whisper for word timestamps and
+stores them in `transcript_words`; captions are cut from those words. A new caption starts at a
+pause of 1 second or more, after each sentence, when the text would no longer fit in two lines of
+42 characters, or before it would pass 6 seconds. Short captions are held for at least 1 second when
+the next one allows, and captions never overlap. The limits are constants at the top of
+`service/captions.py`.
+
+Transcripts made before word timestamps were saved still get captions: each segment's time is
+spread across its words by length, which is less precise. Transcripts with no timestamps at all,
+and recordings with no speech, return 409 with a message saying why. After updating, rebuild the
+worker (`docker compose up --build`) so new transcriptions store word timings.
 
 ## Upload limits
 
@@ -134,6 +150,8 @@ one a minute and five a day per account; failed sends do not count.
 | GET | /jobs/{id}/file | Download original file |
 | GET | /jobs/{id}/transcript.txt | Download the transcript as a text file |
 | GET | /jobs/{id}/transcript.docx | Download the transcript as a formatted Word document |
+| GET | /jobs/{id}/captions.srt | Download captions as SubRip |
+| GET | /jobs/{id}/captions.vtt | Download captions as WebVTT |
 | DELETE | /jobs/{id} | Delete one upload, its stored file, and its transcript |
 | DELETE | /jobs | Delete all of the current user's uploads and transcripts |
 

@@ -26,6 +26,12 @@ CREATE TABLE IF NOT EXISTS transcript_segments (
  position INTEGER NOT NULL, start_seconds REAL NOT NULL, end_seconds REAL NOT NULL, text TEXT NOT NULL,
  PRIMARY KEY (transcript_id, position)
 );
+-- One row per word (US-26), for caption timing. Transcripts made before this have none.
+CREATE TABLE IF NOT EXISTS transcript_words (
+ transcript_id TEXT NOT NULL REFERENCES transcripts(id) ON DELETE CASCADE,
+ position INTEGER NOT NULL, start_seconds REAL NOT NULL, end_seconds REAL NOT NULL, text TEXT NOT NULL,
+ PRIMARY KEY (transcript_id, position)
+);
 CREATE TABLE IF NOT EXISTS upload_hashes (
  job_id TEXT PRIMARY KEY REFERENCES jobs(job_id) ON DELETE CASCADE,
  user_id TEXT NOT NULL, sha256 TEXT NOT NULL

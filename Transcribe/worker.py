@@ -45,8 +45,9 @@ def claim_job():
     
     return job
 
-def save_transcript(job, text, segments=()):
-    """segments: (start_seconds, end_seconds, text) per Whisper segment, for clickable timestamps."""
+def save_transcript(job, text, segments=(), words=()):
+    """segments: (start_seconds, end_seconds, text) per Whisper segment, for clickable timestamps.
+    words: (start_seconds, end_seconds, text) per word, for caption timing (US-26)."""
     db = connect(DATA_DIR)
     try:
         with db:
@@ -60,6 +61,12 @@ def save_transcript(job, text, segments=()):
                 except sqlite3.OperationalError as e:
                     # An API too old to have created the table: keep the plain transcript rather than lose it.
                     print(f"  timestamps not saved for {job['job_id']}: {e}", flush=True)
+                # Separate from the segments, so an API without the words table still keeps those.
+                try:
+                    db.executemany("INSERT INTO transcript_words (transcript_id, position, start_seconds, end_seconds, text) VALUES (?, ?, ?, ?, ?)",
+                                   [(transcript_id, i, start, end, word) for i, (start, end, word) in enumerate(words)])
+                except sqlite3.OperationalError as e:
+                    print(f"  words not saved for {job['job_id']}: {e}", flush=True)
     finally:
         db.close()
 
@@ -100,7 +107,8 @@ def record_finish(job, stage):
 
 def transcribe_job(model, job, path):
     write_progress(job, "preparing")
-    segments, info = model.transcribe(str(path))
+    # Word timestamps (for captions) add an alignment pass, so transcription is somewhat slower.
+    segments, info = model.transcribe(str(path), word_timestamps=True)
     print(f"  language={info.language} duration={info.duration:.1f}s", flush=True)
     # faster-whisper doesn't raise on a damaged file: it reports no audio and returns no text.
     if info.duration <= 0:
@@ -108,16 +116,20 @@ def transcribe_job(model, job, path):
     started = last_write = time.time()
     processed = 0.0
     write_progress(job, "transcribing", info.duration, processed, started)
-    parts = []
+    parts, words = [], []
     for segment in segments:  # lazy: the real work happens during this loop
         text = segment.text.strip()
         if text:
             parts.append((segment.start, segment.end, text))
+        # The raw word keeps its leading space: Whisper puts spacing in the text, and some languages have none.
+        for word in getattr(segment, "words", None) or []:
+            if word.word.strip():
+                words.append((word.start, word.end, word.word))
         processed = max(processed, segment.end)
         if time.time() - last_write >= PROGRESS_INTERVAL:
             write_progress(job, "transcribing", info.duration, processed, started)
             last_write = time.time()
-    return " ".join(part for _, _, part in parts), parts
+    return " ".join(part for _, _, part in parts), parts, words
 
 
 def main():
@@ -136,7 +148,7 @@ def main():
         started = time.time()
 
         try:
-            text, segments = transcribe_job(model, job, path)
+            text, segments, words = transcribe_job(model, job, path)
         except JobDeleted:
             print(f"  deleted during transcription: {job['job_id']}", flush=True)
             continue
@@ -147,7 +159,7 @@ def main():
             continue
 
         print(f"  done in {time.time() - started:.1f}s", flush=True)
-        save_transcript(job, text, segments)
+        save_transcript(job, text, segments, words)
         record_finish(job, "done")
 
 if __name__ == "__main__":

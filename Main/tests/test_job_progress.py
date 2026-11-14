@@ -27,7 +27,7 @@ class FakeModel:
     def __init__(self, ends, duration, on_segment=lambda end: None):
         self.ends, self.duration, self.on_segment = ends, duration, on_segment
 
-    def transcribe(self, path):
+    def transcribe(self, path, **options):
         def segments():
             start = 0.0
             for end in self.ends:
@@ -95,7 +95,7 @@ def test_worker_reports_progress_then_finish(client, worker):
     job = worker.claim_job()
     seen = []
     model = FakeModel([25.0, 50.0], 100.0, on_segment=lambda end: seen.append(activity(client)[job_id]["percent"]))
-    text, segments = worker.transcribe_job(model, job, "ignored")
+    text, segments, words = worker.transcribe_job(model, job, "ignored")
     assert text == "25.0 50.0"
     assert segments == [(0.0, 25.0, "25.0"), (25.0, 50.0, "50.0")]
     assert seen == [25, 50]

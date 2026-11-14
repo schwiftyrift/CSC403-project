@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response,
 from fastapi.responses import FileResponse
 from .auth import current_user
 from .database import connect
+from .captions import cues, to_srt, to_vtt, words_from_segments
 from .transcript_doc import DOCX_TYPE, build_docx, clock, paragraphs
 
 router = APIRouter(tags=["jobs"])
@@ -31,6 +32,8 @@ def owned_job(db, job_id, user_id):
 
 NOT_READY = "The transcript isn't ready yet. Try again once transcription finishes."
 SEGMENTS_SQL = "SELECT start_seconds AS start, end_seconds AS end, text FROM transcript_segments WHERE transcript_id=? ORDER BY position"
+WORDS_SQL = "SELECT start_seconds AS start, end_seconds AS end, text FROM transcript_words WHERE transcript_id=? ORDER BY position"
+CAPTION_FORMATS = {"srt": (to_srt, "application/x-subrip; charset=utf-8"), "vtt": (to_vtt, "text/vtt; charset=utf-8")}
 
 def newest_transcript(db, job_id, user_id):
     """(job row, newest transcript row). The 404s match for missing, foreign, and unfinished jobs."""
@@ -200,6 +203,36 @@ def download_transcript_docx(job_id: uuid.UUID, request: Request, user=Depends(c
     if not timed:
         metadata.append(("Note", "Timestamps aren't available for this transcript because it was made before they were saved."))
     return Response(build_docx(stem, metadata, segments, row["text"]), media_type=DOCX_TYPE, headers=attachment(f"{stem}.docx"))
+
+def caption_cues(db, transcript):
+    """Cues from word timings; else estimated from segments (transcripts saved before US-26);
+    else a 409 explaining why there are no captions."""
+    result = cues([dict(row) for row in db.execute(WORDS_SQL, (transcript["id"],))])
+    if not result:
+        result = cues(words_from_segments([dict(row) for row in db.execute(SEGMENTS_SQL, (transcript["id"],))]))
+    if result:
+        return result
+    if not transcript["text"].strip():
+        raise HTTPException(409, "No speech was found in this recording, so there are no captions to make.")
+    raise HTTPException(409, "This transcript was made before timestamps were saved, so captions can't be made. Delete the upload and upload the file again to get captions.")
+
+def caption_response(job_id, request, user, fmt):
+    with connect(request.app.state.data_dir) as db:
+        job, transcript = newest_transcript(db, job_id, user["id"])
+        cue_list = caption_cues(db, transcript)
+    render, media_type = CAPTION_FORMATS[fmt]
+    stem = Path(job["filename"]).stem or "transcript"
+    return Response(render(cue_list), media_type=media_type, headers=attachment(f"{stem}.{fmt}"))
+
+@router.get("/jobs/{job_id}/captions.srt")
+def download_srt(job_id: uuid.UUID, request: Request, user=Depends(current_user)):
+    """Captions (US-26) as SubRip, for video editors."""
+    return caption_response(job_id, request, user, "srt")
+
+@router.get("/jobs/{job_id}/captions.vtt")
+def download_vtt(job_id: uuid.UUID, request: Request, user=Depends(current_user)):
+    """Captions (US-26) as WebVTT, for browsers and web players."""
+    return caption_response(job_id, request, user, "vtt")
 
 @router.get("/jobs/{job_id}/segments")
 def transcript_segments(job_id: uuid.UUID, request: Request, user=Depends(current_user)):

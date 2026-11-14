@@ -4,19 +4,23 @@ from test_accounts import client, register, upload  # noqa: F401  (client is a f
 from test_retry import load_worker, set_status
 
 class FakeModel:
-    """Stands in for faster-whisper: returns segments lazily, like the real model."""
+    """Stands in for faster-whisper: returns segments lazily, like the real model.
+    segments: (start, end, text) or (start, end, text, [(start, end, word), ...])."""
     def __init__(self, segments, duration=10.0):
-        self.segments, self.duration = segments, duration
-    def transcribe(self, path):
-        parts = (types.SimpleNamespace(start=s, end=e, text=t) for s, e, t in self.segments)
+        self.segments, self.duration, self.options = segments, duration, None
+    def transcribe(self, path, **options):
+        self.options = options
+        parts = (types.SimpleNamespace(start=s[0], end=s[1], text=s[2],
+                                       words=[types.SimpleNamespace(start=ws, end=we, word=w, probability=1.0) for ws, we, w in (s[3] if len(s) > 3 else [])])
+                 for s in self.segments)
         return parts, types.SimpleNamespace(language="en", duration=self.duration)
 
-def run_worker_on(client, monkeypatch, job_id, segments):
+def run_worker_on(client, monkeypatch, job_id, segments, model=None):
     worker = load_worker(monkeypatch, client.app.state.data_dir)
     job = worker.claim_job()
     assert job["job_id"] == job_id
-    text, parts = worker.transcribe_job(FakeModel(segments), job, client.app.state.data_dir / "uploads" / job["storage_name"])
-    worker.save_transcript(job, text, parts)
+    text, parts, words = worker.transcribe_job(model or FakeModel(segments), job, client.app.state.data_dir / "uploads" / job["storage_name"])
+    worker.save_transcript(job, text, parts, words)
     return worker, text
 
 def test_worker_saves_timestamps_the_page_can_read(client, monkeypatch):

@@ -38,7 +38,13 @@ function updateEmptyState() {
   $("deleteAll").disabled = empty;
 }
 
-const FORMATS = {txt: {label: "Text (.txt)", noun: "a text file"}, docx: {label: "Word (.docx)", noun: "a Word document"}};
+const FORMATS = {
+  // noun reads as "Downloaded <noun> of lecture.mp4".
+  txt:  {label: "Text (.txt)",     noun: "the text transcript", path: "transcript.txt"},
+  docx: {label: "Word (.docx)",    noun: "the Word transcript", path: "transcript.docx"},
+  srt:  {label: "Captions (.srt)", noun: "the SRT captions",    path: "captions.srt"},
+  vtt:  {label: "Captions (.vtt)", noun: "the WebVTT captions", path: "captions.vtt"},
+};
 
 function setMenuOpen(menu, open) {
   menu.querySelector(".menu-items").hidden = !open;
@@ -50,8 +56,8 @@ function transcriptMenu(job) {
   const menu = document.createElement("div");
   menu.className = "download-menu transcript-download";
   const toggle = document.createElement("button");
-  toggle.type = "button"; toggle.className = "secondary menu-toggle"; toggle.textContent = "Download transcript ▾";
-  toggle.setAttribute("aria-label", `Download the transcript of ${job.filename}`);
+  toggle.type = "button"; toggle.className = "secondary menu-toggle"; toggle.textContent = "Transcript & captions ▾";
+  toggle.setAttribute("aria-label", `Download the transcript or captions of ${job.filename}`);
   toggle.setAttribute("aria-expanded", "false");
   const items = document.createElement("div");
   items.className = "menu-items"; items.id = `download-menu-${job.job_id}`; items.hidden = true;
@@ -59,7 +65,7 @@ function transcriptMenu(job) {
   for (const [format, {label, noun}] of Object.entries(FORMATS)) {
     const item = document.createElement("button");
     item.type = "button"; item.className = "secondary"; item.textContent = label;
-    item.setAttribute("aria-label", `Download the transcript of ${job.filename} as ${noun}`);
+    item.setAttribute("aria-label", `Download ${noun} of ${job.filename}`);
     item.addEventListener("click", () => {
       setMenuOpen(menu, false);
       toggle.focus();
@@ -142,9 +148,9 @@ async function loadHistory(append = false) {
 // Fetched rather than linked so a failure shows a message here instead of a raw error page.
 async function downloadTranscript(job, button, format = "txt") {
   button.disabled = true;
-  say(`Preparing the transcript of ${job.filename}...`);
+  say(`Preparing ${FORMATS[format].noun} of ${job.filename}...`);
   try {
-    const response = await fetch(`/jobs/${job.job_id}/transcript.${format}`);
+    const response = await fetch(`/jobs/${job.job_id}/${FORMATS[format].path}`);
     if (response.status === 401) { window.location.replace("/login.html"); return; }
     if (!response.ok) {
       const body = await response.json().catch(() => ({}));
@@ -158,7 +164,7 @@ async function downloadTranscript(job, button, format = "txt") {
     save.download = job.filename.replace(/\.[^.]+$/, "") + "." + format;
     save.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-    say(`Downloaded the transcript of ${job.filename} as ${FORMATS[format].noun}.`, "ok");
+    say(`Downloaded ${FORMATS[format].noun} of ${job.filename}.`, "ok");
   } catch (error) {
     // fetch throws a TypeError when the server cannot be reached at all.
     say(error instanceof TypeError ? "Could not reach the server. Check your connection and try again." : error.message, "error");
