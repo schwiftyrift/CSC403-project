@@ -4,7 +4,11 @@ import { showTranscript } from "./transcript-player.js";
 const transcriptFilename = $("transcriptFilename");
 const transcriptStatus = $("transcriptStatus");
 const transcriptText = $("transcriptText");
-api("/transcripts/latest")
+const jobId = new URLSearchParams(location.search).get("job");
+const url = jobId ? `/jobs/${encodeURIComponent(jobId)}/transcript` : "/transcript/latest";
+
+
+api(url)
     .then(data => {
         transcriptFilename.textContent = data.filename;
         transcriptText.textContent = data.text;

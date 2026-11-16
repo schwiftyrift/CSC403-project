@@ -169,8 +169,8 @@
     card.append(element("p", "", failed
       ? `Could not transcribe "${shortName(job.filename)}". The file may be damaged or have no audio. Delete it under Your uploads, then upload it again.`
       : `Transcript ready: "${shortName(job.filename)}".`));
-    const link = element("a", "job-link", "Go to Your uploads");
-    link.href = "/history.html";
+    const link = element("a", "job-link", failed ? "Go to Your uploads" : "View transcript");
+    link.href = failed ? "/history.html" : `/transcribe.html?job=${encodeURIComponent(job.job_id)}`;
     const dismiss = element("button", "secondary", "Dismiss");
     dismiss.type = "button";
     dismiss.setAttribute("aria-label", `Dismiss the notification for ${job.filename}`);

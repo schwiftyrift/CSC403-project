@@ -5,7 +5,6 @@ const ALLOWED = [".mp3", ".wav", ".m4a", ".mp4", ".mov"];
 const MAX_MB = 500;
 const drop = $("drop"), input = $("file"), chosen = $("chosen"), bar = $("bar");
 const go = $("go"), statusEl = $("status"), result = $("result");
-const transcribe = $("transcribe");
 
 let selected = null;
 let signedIn = false;
@@ -28,7 +27,6 @@ function setFile(file) {
 function clearFile() {
   selected = null; input.value = "";
   chosen.classList.remove("show");
-  transcribe.classList.remove("show")
   go.disabled = true;
 }
 
@@ -74,8 +72,7 @@ go.addEventListener("click", () => {
     try { body = JSON.parse(xhr.responseText); } catch (_) {}
     if (xhr.status >= 200 && xhr.status < 300) {
         say(statusEl, "Upload complete.", "ok");
-        transcribe.classList.add("show");
-        result.textContent = `${body.filename} saved to your account.`; result.className = "show";
+        result.textContent = `${body.filename} uploaded. You'll get a notification here when the transcript is ready.`; result.className = "show";
     } else {
         if (xhr.status === 401){
             signedIn = false;
@@ -89,9 +86,6 @@ go.addEventListener("click", () => {
   xhr.send(form);
 });
 
-transcribe.addEventListener("click", ()=> {
-  window.location.href = "/transcribe.html";
-});
 
 function applyLimits(data) {
   limits = data;

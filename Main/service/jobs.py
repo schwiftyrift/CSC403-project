@@ -204,6 +204,13 @@ def download_transcript_docx(job_id: uuid.UUID, request: Request, user=Depends(c
         metadata.append(("Note", "Timestamps aren't available for this transcript because it was made before they were saved."))
     return Response(build_docx(stem, metadata, segments, row["text"]), media_type=DOCX_TYPE, headers=attachment(f"{stem}.docx"))
 
+@router.get("/jobs/{job_id}/transcript")
+def transcript_json(job_id: uuid.UUID, request: Request, user=Depends(current_user)):
+    """One job's newest transcript, for the interactive transcript page."""
+    with connect(request.app.state.data_dir) as db:
+        job, row = newest_transcript(db, job_id, user["id"])
+    return {"job_id": job["job_id"], "filename": job["filename"], "text": row["text"], "created_at": row["created_at"]}
+
 def caption_cues(db, transcript):
     """Cues from word timings; else estimated from segments (transcripts saved before US-26);
     else a 409 explaining why there are no captions."""

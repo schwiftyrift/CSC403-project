@@ -105,6 +105,24 @@ function retryButton(job) {
   return retry;
 }
 
+function viewLink(job) {
+  const a = document.createElement("a");
+  a.className = "view-transcript";
+  a.href = `/transcribe.html?job=${encodeURIComponent(job.job_id)}`;
+  a.textContent = "View transcript";
+  a.setAttribute("aria-label", `View the transcript of ${job.filename}`);
+  return a;
+}
+
+function viewLink(job) {
+  const a = document.createElement("a");
+  a.className = "view-transcript";
+  a.href = `/transcribe.html?job=${encodeURIComponent(job.job_id)}`;
+  a.textContent = "View transcript";
+  a.setAttribute("aria-label", `View the transcript of ${job.filename}`);
+  return a;
+}
+
 function render(job) {
   const article = document.createElement("article");
   article.dataset.jobId = job.job_id;
@@ -121,7 +139,7 @@ function render(job) {
   remove.addEventListener("click", () => deleteOne(job, article, remove));
   actions.append(link);
   if (job.transcript_ready) {
-    actions.append(transcriptMenu(job));
+    actions.append(viewLink(job), transcriptMenu(job));
   }
   if (job.status === "failed") {
     actions.append(retryButton(job));
@@ -357,7 +375,9 @@ window.addEventListener("jobs:update", (event) => {
     article.querySelector(".job-status").textContent = job.percent !== null && job.status === "processing"
       ? `Transcribing: ${job.percent}%` : STATUS_TEXT[job.status] || job.status;
     if (job.status === "done" && !article.querySelector(".transcript-download")) {
-      article.querySelector(".actions").insertBefore(transcriptMenu(job), article.querySelector(".danger"));
+      const danger = article.querySelector(".danger");
+      if (!article.querySelector(".view-transcript")) article.querySelector(".actions").insertBefore(viewLink(job), danger);
+      article.querySelector(".actions").insertBefore(transcriptMenu(job), danger);
     }
     // Failed while the page was open, or retried in another tab.
     const retry = article.querySelector(".retry");

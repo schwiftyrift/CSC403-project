@@ -183,14 +183,6 @@ pre.show {
     display: block;
 }
 
-#transcribe {
-    display: none;
-}
-
-#transcribe.show {
-    display: block;
-}
-
 /* side bar menu*/
 :root {
     --sidebar-width: 250px;
