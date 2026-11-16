@@ -10,6 +10,7 @@ MODEL = os.environ.get("WHISPER_MODEL", "medium")
 THREADS = int(os.environ.get("WHISPER_THREADS", "4"))
 POLL_SECONDS = 2
 PROGRESS_INTERVAL = 2  # seconds between progress writes, so the database stays quiet
+STALE_SECONDS = 220
 
 class JobDeleted(Exception):
     """The user deleted the job while it was being transcribed."""
@@ -26,7 +27,11 @@ def requeue_stale():
     db = connect(DATA_DIR)
     try:
         with db:
-            db.execute("UPDATE jobs SET status = 'queued' WHERE status = 'processing'")
+            db.execute("""
+                UPDATE jobs SET status = 'queued'
+                WHERE status = 'processing' AND job_id NOT IN (
+                    SELECT job_id FROM job_progress WHERE updated_at > ?)""",
+                (time.time() - STALE_SECONDS,))
     finally:
         db.close()
 
@@ -36,13 +41,20 @@ def claim_job():
     try:
         with db:
             job = db.execute("""
-                UPDATE jobs SET status = 'processing' 
-                WHERE job_id = (SELECT job_id FROM jobs 
-                WHERE status = 'queued' ORDER BY uploaded_at LIMIT 1) 
+                UPDATE jobs SET status = 'processing'
+                WHERE job_id = (SELECT job_id FROM jobs
+                WHERE status = 'queued' ORDER BY uploaded_at LIMIT 1)
                 RETURNING job_id, storage_name, filename""").fetchone()
+            if job:
+                now = time.time()
+                db.execute("""
+                    INSERT INTO job_progress (job_id, stage, duration_seconds, processed_seconds, started_at, updated_at)
+                    VALUES (?, 'preparing', NULL, 0, ?, ?)
+                    ON CONFLICT(job_id) DO UPDATE SET stage='preparing', duration_seconds=NULL,
+                    processed_seconds=0, started_at=excluded.started_at, updated_at=excluded.updated_at""",
+                    (job["job_id"], now, now))
     finally:
         db.close()
-    
     return job
 
 def save_transcript(job, text, segments=(), words=()):
@@ -137,7 +149,11 @@ def main():
     model = WhisperModel(MODEL, device="cpu", compute_type="int8", cpu_threads=THREADS, download_root="/models")
     print("model loaded", flush=True)
     requeue_stale()
+    last_sweep = 0
     while True:
+        if time.time() - last_sweep > 60:
+            requeue_stale()
+            last_sweep = time.time()
         job = claim_job()
         if job is None:
             time.sleep(POLL_SECONDS)

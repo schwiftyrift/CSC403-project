@@ -31,6 +31,8 @@ services:
     environment:
       WHISPER_MODEL: medium
       WHISPER_THREADS: "4"
+    deploy:
+      replicas: 3
 
 volumes:
   uploads:          # keep this name: renaming it creates a new, empty volume
