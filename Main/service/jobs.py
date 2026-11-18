@@ -1,12 +1,13 @@
 """User-owned media uploads and downloads."""
 import hashlib
+import json
 import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, UploadFile
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, Response, UploadFile
 from fastapi.responses import FileResponse
 from .auth import current_user
 from .database import connect
@@ -95,7 +96,15 @@ def checked_extension(filename):
     return ext
 
 @router.post("/jobs", status_code=201)
-async def create_job(request: Request, file: UploadFile, user=Depends(current_user)):
+async def create_job(request: Request, file: UploadFile, user=Depends(current_user), content_type: str = Form("general"), formats: str = Form("[]")):
+    from .outputs import validate_preferences
+    try:
+        output_formats = json.loads(formats)
+    except (ValueError, TypeError):
+        raise HTTPException(400, "Output selections must be a JSON list.")
+    if not isinstance(output_formats, list) or len(output_formats) > 3 or any(not isinstance(item, str) for item in output_formats):
+        raise HTTPException(400, "Choose up to three output formats.")
+    validate_preferences(content_type, output_formats)
     ext = checked_extension(file.filename)
     uploads = request.app.state.data_dir / "uploads"
     uploads.mkdir(parents=True, exist_ok=True)
@@ -128,6 +137,7 @@ async def create_job(request: Request, file: UploadFile, user=Depends(current_us
             db.execute("INSERT INTO jobs (job_id, user_id, filename, storage_name, size_bytes, status, uploaded_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
                        (job_id, user["id"], meta["filename"], storage_name, size, meta["status"], meta["uploaded_at"]))
             db.execute("INSERT INTO upload_hashes VALUES (?, ?, ?)", (job_id, user["id"], sha256))
+            db.execute("INSERT INTO output_preferences VALUES (?, ?, ?)", (job_id, content_type, json.dumps(list(dict.fromkeys(output_formats)))))
         return meta
     except BaseException:
         destination.unlink(missing_ok=True)

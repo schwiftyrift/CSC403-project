@@ -1,6 +1,25 @@
 name: 403-webserver
 
 services:
+  ollama:
+    image: ollama/ollama:0.11.10
+    restart: unless-stopped
+    volumes:
+      - output_models:/root/.ollama
+
+  output-worker:
+    build:
+      context: .
+      dockerfile: Main/Dockerfile
+    command: ["python", "-m", "service.output_worker"]
+    restart: unless-stopped
+    volumes:
+      - uploads:/data
+    environment:
+      OLLAMA_URL: http://ollama:11434
+      OUTPUT_MODEL: ${OUTPUT_MODEL:-qwen3:1.7b}
+    depends_on:
+      - ollama
   api:
     build:
       context: .
@@ -35,5 +54,6 @@ services:
       replicas: 3
 
 volumes:
+  output_models:
   uploads:          # keep this name: renaming it creates a new, empty volume
   whisper_models:

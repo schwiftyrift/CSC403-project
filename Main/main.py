@@ -6,7 +6,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from service import auth, database, jobs, mailer
+from service import auth, database, jobs, mailer, outputs
 
 
 def create_app(data_dir=None):
@@ -54,6 +54,7 @@ def create_app(data_dir=None):
 
     app.include_router(auth.router)
     app.include_router(jobs.router)
+    app.include_router(outputs.router)
     static = Path(__file__).parent / "static"
     if static.is_dir():
         app.mount("/", StaticFiles(directory=static, html=True), name="static")
