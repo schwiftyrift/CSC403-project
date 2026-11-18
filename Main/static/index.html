@@ -83,26 +83,85 @@
             </div>
         </div>
 
-        <button type="button" id="logout" class="logout" hidden>
+        <button type="button" id="logout" class="logout">
             Log Out
         </button>
     </nav>
 
-    <main>
-        <h1>Transcript Service</h1>
+  
+<main class="home-main">
+    <section class="home-hero">
+        <div class="hero-content">
+            <h1>Turn Recordings Into Transcripts</h1>
 
-        <section class="card">
-            <h2>Welcome</h2>
-            <p>
-                Upload audio and video recordings, generate transcripts,
-                and manage your files from one place.
+            <p class="hero-description">
+                Transcript Service makes it easy to convert audio
+                and video recordings into readable text. Upload
+                recordings, generate transcripts, and keep your
+                files organized in one place. Log in to start your journey!
             </p>
 
-            <a href="/upload.html">Go to Uploads</a>
-        </section>
-    </main>
+            <div class="hero-actions">
+                
+              <a href="/upload.html"
+                class="hero-primary auth-required"
+                aria-disabled="true"
+                tabindex="-1">
+                  Start Transcribing
+              </a>
 
-    <script type="module" src="/index.js"></script>
+              <a href="/history.html"
+                class="hero-secondary auth-required"
+                aria-disabled="true"
+                tabindex="-1">
+                  View Your Uploads
+              </a>
+
+            </div>
+        </div>
+    </section>
+
+    <section class="home-features">
+        <h2>What You Can Do</h2>
+
+        <div class="feature-grid">
+            <article class="card feature-card">
+                <h3>Upload Recordings</h3>
+                <p>
+                    Upload audio and video recordings to begin
+                    the transcription process.
+                </p>
+            </article>
+
+            <article class="card feature-card">
+                <h3>Generate Transcripts</h3>
+                <p>
+                    Convert recordings into readable text that
+                    can be reviewed and downloaded.
+                </p>
+            </article>
+
+            <article class="card feature-card">
+                <h3>Download Your Results</h3>
+                <p>
+                    Download transcripts as text or Word documents,
+                    or export captions in SRT and WebVTT formats.
+                </p>
+            </article>
+
+            <article class="card feature-card">
+                <h3>Manage Your Files</h3>
+                <p>
+                    View previous uploads, monitor transcription
+                    progress, and delete recordings you no longer need.
+                </p>
+            </article>
+        </div>
+    </section>
+</main>
+
+
+<script type="module" src="/index.js"></script>
 </body>
 </html>
 

@@ -145,6 +145,10 @@ async function checkNavigationLogin() {
 
         // User is logged in
         menuButton.disabled = false;
+        document.querySelectorAll(".auth-required").forEach(link => {
+        link.setAttribute("aria-disabled", "false");
+        link.removeAttribute("tabindex");
+});
 
         if (ribbonLogin) ribbonLogin.hidden = true;
         if (ribbonProfile) ribbonProfile.hidden = false;
@@ -152,6 +156,10 @@ async function checkNavigationLogin() {
     } catch (error) {
         // User is logged out
         menuButton.disabled = true;
+        document.querySelectorAll(".auth-required").forEach(link => {
+        link.setAttribute("aria-disabled", "true");
+        link.setAttribute("tabindex", "-1");
+});
 
         if (ribbonLogin) ribbonLogin.hidden = false;
         if (ribbonProfile) ribbonProfile.hidden = true;
@@ -162,5 +170,13 @@ async function checkNavigationLogin() {
         menuButton.setAttribute("aria-expanded", "false");
     }
 }
+
+document.querySelectorAll(".auth-required").forEach(link => {
+    link.addEventListener("click", event => {
+        if (link.getAttribute("aria-disabled") === "true") {
+            event.preventDefault();
+        }
+    });
+});
 
 checkNavigationLogin();

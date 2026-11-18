@@ -726,3 +726,203 @@ button.danger {
 .ribbon-login[hidden] {
     display: none;
 }
+
+
+/* Homepage */
+
+.home-main {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 3rem 2rem 5rem;
+}
+
+.home-hero {
+    display: flex;
+    align-items: center;
+    min-height: 350px;
+    padding: 3rem;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+}
+
+.hero-content {
+    max-width: 750px;
+}
+
+.home-hero h1 {
+    font-size: clamp(2rem, 4vw, 3.25rem);
+    line-height: 1.2;
+    margin: 0 0 1.5rem;
+}
+
+.hero-description {
+    font-size: 1.15rem;
+    line-height: 1.8;
+    color: var(--muted);
+}
+
+.hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-top: 2rem;
+}
+
+.hero-primary,
+.hero-secondary {
+    display: inline-block;
+    padding: 0.85rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.hero-primary {
+    background: var(--accent);
+    color: white;
+}
+
+.hero-secondary {
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--line);
+}
+
+.hero-primary:hover,
+.hero-secondary:hover {
+    filter: brightness(0.9);
+}
+
+/* Feature cards */
+
+.home-features {
+    margin-top: 4rem;
+}
+
+.home-features h2 {
+    margin-bottom: 1.5rem;
+    font-size: 1.75rem;
+}
+
+.feature-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.5rem;
+}
+
+.feature-card {
+    padding: 2rem;
+}
+
+.feature-card h3 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+}
+
+.feature-card p {
+    color: var(--muted);
+    line-height: 1.7;
+}
+
+/* Mobile layout */
+
+@media (max-width: 650px) {
+    .home-main {
+        padding: 2rem 1rem;
+    }
+
+    .home-hero {
+        min-height: auto;
+        padding: 2rem 1.5rem;
+    }
+
+    .feature-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .hero-actions {
+        flex-direction: column;
+    }
+
+    .hero-primary,
+    .hero-secondary {
+        text-align: center;
+    }
+}
+
+
+/* Disabled homepage buttons */
+
+.auth-required[aria-disabled="true"] {
+    opacity: 0.4;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+
+/* Advertisement layout for main application pages */
+
+.page-with-ads {
+    display: grid;
+    grid-template-columns:
+        minmax(160px, 1fr)
+        minmax(0, 700px)
+        minmax(160px, 1fr);
+    gap: 1.5rem;
+    max-width: 1500px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+    align-items: start;
+}
+
+.page-with-ads > main {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    box-sizing: border-box;
+    margin: 3rem 0;
+    padding: 0;
+}
+
+.side-ad {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 3rem;
+}
+
+.ad-label {
+    font-size: 0.7rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.side-ad img {
+    display: block;
+    width: 100%;
+    max-width: 200px;
+    height: auto;
+    border-radius: 8px;
+}
+
+/* Hide advertisements on narrow screens */
+
+@media (max-width: 1100px) {
+    .page-with-ads {
+        display: block;
+        padding: 0 1rem;
+    }
+
+    .page-with-ads > main {
+        max-width: 36rem;
+        margin: 3rem auto;
+    }
+
+    .side-ad {
+        display: none;
+    }
+}
+

@@ -76,34 +76,53 @@
 
   <button type="button" id="logout" class="logout">Log Out</button>
 </nav>
+<div class="page-with-ads">
+    <aside class="side-ad" aria-label="Advertisement">
+        <span class="ad-label">Advertisement</span>
+        <img
+            src="/images/ad-left.png"
+            alt="Advertisement"
+            loading="lazy"
+        >
+    </aside>
+    <main>
+    <h1>Transcript Service</h1>
+    <p class="sub">Upload an audio or video file and it will be transcribed automatically.</p>
 
-<main>
-  <h1>Transcript Service</h1>
-  <p class="sub">Upload an audio or video file and it will be transcribed automatically.</p>
 
+    <div class="card" id="upload">
+        <label id="drop" for="file">
+        <strong>Drag a file here</strong>
+        <span id="dropHint">or click to choose one</span>
+        </label>
+        <input type="file" id="file">
 
-  <div class="card" id="upload">
-    <label id="drop" for="file">
-      <strong>Drag a file here</strong>
-      <span id="dropHint">or click to choose one</span>
-    </label>
-    <input type="file" id="file">
+        <div id="chosen">
+        <div><div id="name"></div><div id="size"></div></div>
+        <button type="button" class="secondary" id="clear">Remove</button>
+        </div>
 
-    <div id="chosen">
-      <div><div id="name"></div><div id="size"></div></div>
-      <button type="button" class="secondary" id="clear">Remove</button>
+        <progress id="bar" max="100" value="0"></progress>
+        <div id="uploadProgressText"></div>
+
+        <div class="row">
+        <button type="button" id="go" disabled>Upload</button>
+        </div>
+        <div id="status" role="status" aria-live="polite"></div>
+        <pre id="result"></pre>
     </div>
+    </main>
 
-    <progress id="bar" max="100" value="0"></progress>
-    <div id="uploadProgressText"></div>
+    <aside class="side-ad" aria-label="Advertisement">
+        <span class="ad-label">Advertisement</span>
+        <img
+            src="/images/ad-right.png"
+            alt="Advertisement"
+            loading="lazy"
+        >
+    </aside>
+</div>
 
-    <div class="row">
-      <button type="button" id="go" disabled>Upload</button>
-    </div>
-    <div id="status" role="status" aria-live="polite"></div>
-    <pre id="result"></pre>
-  </div>
-</main>
 <script type="module" src="/upload.js"></script>
 <script src="/verify-banner.js"></script>
 <script src="/job-progress.js"></script>
