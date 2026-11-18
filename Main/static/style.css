@@ -531,6 +531,8 @@ button.danger {
 .loginContainer h2 { margin: 0 0 .5rem; }
 #accountStatus.ok, #passwordStatus.ok, #resetStatus.ok { color: var(--ok); }
 #passwordStatus.error, #resetStatus.error { color: var(--err); }
+#transcriptStatus.error { color: var(--err); }
+#transcriptStatus a { color: var(--accent); }
 #passwordStatus, #resetStatus { margin: .75rem 0 0; overflow-wrap: anywhere; }
 #passwordStatus:empty, #resetStatus:empty { display: none; }
 .settingsForm button[type="submit"] { margin-top: .25rem; }

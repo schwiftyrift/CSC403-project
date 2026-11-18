@@ -11,9 +11,16 @@ export function humanSize(bytes) {
 
 export async function api(url, options = {}) {
   const response = await fetch(url, options);
-  const body = response.status === 204 ? null : await response.json();
+  // A proxy error page or a crashed server isn't JSON, so don't let parsing hide the real status.
+  const body = response.status === 204 ? null : await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(body.error || "Request failed");
+    // Our handlers send {"error": ...}; FastAPI's own 404 for an unknown route sends {"detail": ...}.
+    const message = body.error || (typeof body.detail === "string" && body.detail);
+    const error = new Error(message || (response.status >= 500
+      ? "The server is having trouble right now. Try again in a few minutes."
+      : `Request failed (${response.status})`));
+    error.status = response.status;
+    throw error;
   }
   return body;
 }
