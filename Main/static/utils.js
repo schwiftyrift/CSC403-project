@@ -11,9 +11,16 @@ export function humanSize(bytes) {
 
 export async function api(url, options = {}) {
   const response = await fetch(url, options);
-  const body = response.status === 204 ? null : await response.json();
+  // A proxy error page or a crashed server isn't JSON, so don't let parsing hide the real status.
+  const body = response.status === 204 ? null : await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(body.error || "Request failed");
+    // Our handlers send {"error": ...}; FastAPI's own 404 for an unknown route sends {"detail": ...}.
+    const message = body.error || (typeof body.detail === "string" && body.detail);
+    const error = new Error(message || (response.status >= 500
+      ? "The server is having trouble right now. Try again in a few minutes."
+      : `Request failed (${response.status})`));
+    error.status = response.status;
+    throw error;
   }
   return body;
 }
@@ -120,3 +127,63 @@ if (themeSelect) {
         } catch (_) {}
     });
 }
+
+
+// Shared navigation authentication
+
+const ribbonLogin = document.getElementById("ribbonLogin");
+const ribbonProfile = document.getElementById("ribbonProfile");
+
+async function checkNavigationLogin() {
+    const menuButton = document.getElementById("menuButton");
+    const sidebar = document.getElementById("sidebar");
+
+    // Only run on pages with the navigation elements.
+    if (!menuButton) return;
+
+    menuButton.disabled = true;
+
+    try {
+        const response = await fetch("/auth/me");
+
+        if (!response.ok) {
+            throw new Error("Not authenticated");
+        }
+
+        // User is logged in
+        menuButton.disabled = false;
+        document.querySelectorAll(".auth-required").forEach(link => {
+        link.setAttribute("aria-disabled", "false");
+        link.removeAttribute("tabindex");
+});
+
+        if (ribbonLogin) ribbonLogin.hidden = true;
+        if (ribbonProfile) ribbonProfile.hidden = false;
+
+    } catch (error) {
+        // User is logged out
+        menuButton.disabled = true;
+        document.querySelectorAll(".auth-required").forEach(link => {
+        link.setAttribute("aria-disabled", "true");
+        link.setAttribute("tabindex", "-1");
+});
+
+        if (ribbonLogin) ribbonLogin.hidden = false;
+        if (ribbonProfile) ribbonProfile.hidden = true;
+
+        if (sidebar) sidebar.classList.remove("open");
+
+        menuButton.classList.remove("open");
+        menuButton.setAttribute("aria-expanded", "false");
+    }
+}
+
+document.querySelectorAll(".auth-required").forEach(link => {
+    link.addEventListener("click", event => {
+        if (link.getAttribute("aria-disabled") === "true") {
+            event.preventDefault();
+        }
+    });
+});
+
+checkNavigationLogin();

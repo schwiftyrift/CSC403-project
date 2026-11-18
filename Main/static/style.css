@@ -1,5 +1,6 @@
 :root {
     --accent: #1f3864;
+    --on-accent: #fff; /* text on accent-filled buttons */
     --bg: #f6f7f9;
     --card: #fff;
     --text: #1b1f24;
@@ -12,6 +13,7 @@
 @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
         --accent: #7aa2f7;
+        --on-accent: #0b1020;
         --bg: #14171c;
         --card: #1d2229;
         --text: #e8ebf0;
@@ -25,6 +27,7 @@
 /* Manually selected dark theme */
 :root[data-theme="dark"] {
     --accent: #7aa2f7;
+    --on-accent: #0b1020;
     --bg: #14171c;
     --card: #1d2229;
     --text: #e8ebf0;
@@ -140,14 +143,10 @@ button {
     border-radius: 8px;
     border: 1px solid var(--accent);
     background: var(--accent);
-    color: #fff;
+    /* From the theme variables, not prefers-color-scheme, so choosing Light in Settings
+       still gets white text when the computer itself is in dark mode. */
+    color: var(--on-accent);
     cursor: pointer;
-}
-
-@media (prefers-color-scheme: dark) {
-    button {
-        color: #0b1020;
-    }
 }
 
 button.secondary {
@@ -447,11 +446,8 @@ button.loginButton {
     border-radius: 8px;
     border: 1px solid var(--accent);
     background: var(--accent);
-    color: #fff;
+    color: var(--on-accent);
     text-decoration: none;
-}
-@media (prefers-color-scheme: dark) {
-    #loginLink { color: #0b1020; }
 }
 #loginLink:hover { opacity: .9; }
 #loginLink:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -535,6 +531,8 @@ button.danger {
 .loginContainer h2 { margin: 0 0 .5rem; }
 #accountStatus.ok, #passwordStatus.ok, #resetStatus.ok { color: var(--ok); }
 #passwordStatus.error, #resetStatus.error { color: var(--err); }
+#transcriptStatus.error { color: var(--err); }
+#transcriptStatus a { color: var(--accent); }
 #passwordStatus, #resetStatus { margin: .75rem 0 0; overflow-wrap: anywhere; }
 #passwordStatus:empty, #resetStatus:empty { display: none; }
 .settingsForm button[type="submit"] { margin-top: .25rem; }
@@ -643,3 +641,286 @@ button.danger {
     transform: translateY(-70%) rotate(45deg);
     pointer-events: none;
 }
+
+
+/* Homepage ribbon */
+
+.top-ribbon {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 70px;
+    padding: 0 2rem 0 5rem;
+    background: var(--card);
+    border-bottom: 1px solid var(--line);
+}
+
+.ribbon-title {
+    color: var(--text);
+    font-size: 1.25rem;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.ribbon-title:hover {
+    color: var(--accent);
+}
+
+.ribbon-nav {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.ribbon-login {
+    display: inline-block;
+    padding: 0.65rem 1.25rem;
+    border-radius: 8px;
+    background: var(--accent);
+    color: white;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.ribbon-login:hover {
+    filter: brightness(0.9);
+}
+
+@media (max-width: 600px) {
+    .top-ribbon {
+        padding: 0 1rem 0 4rem;
+    }
+
+    .ribbon-title {
+        font-size: 1rem;
+    }
+
+    .ribbon-login {
+        padding: 0.5rem 0.75rem;
+    }
+}
+
+.menu-button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+
+/* Ribbon profile icon */
+
+.ribbon-profile {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    background: var(--bg);
+    color: var(--text);
+}
+
+.ribbon-profile[hidden],
+.ribbon-login[hidden] {
+    display: none;
+}
+
+
+/* Homepage */
+
+.home-main {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 3rem 2rem 5rem;
+}
+
+.home-hero {
+    display: flex;
+    align-items: center;
+    min-height: 350px;
+    padding: 3rem;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+}
+
+.hero-content {
+    max-width: 750px;
+}
+
+.home-hero h1 {
+    font-size: clamp(2rem, 4vw, 3.25rem);
+    line-height: 1.2;
+    margin: 0 0 1.5rem;
+}
+
+.hero-description {
+    font-size: 1.15rem;
+    line-height: 1.8;
+    color: var(--muted);
+}
+
+.hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-top: 2rem;
+}
+
+.hero-primary,
+.hero-secondary {
+    display: inline-block;
+    padding: 0.85rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.hero-primary {
+    background: var(--accent);
+    color: white;
+}
+
+.hero-secondary {
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--line);
+}
+
+.hero-primary:hover,
+.hero-secondary:hover {
+    filter: brightness(0.9);
+}
+
+/* Feature cards */
+
+.home-features {
+    margin-top: 4rem;
+}
+
+.home-features h2 {
+    margin-bottom: 1.5rem;
+    font-size: 1.75rem;
+}
+
+.feature-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.5rem;
+}
+
+.feature-card {
+    padding: 2rem;
+}
+
+.feature-card h3 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+}
+
+.feature-card p {
+    color: var(--muted);
+    line-height: 1.7;
+}
+
+/* Mobile layout */
+
+@media (max-width: 650px) {
+    .home-main {
+        padding: 2rem 1rem;
+    }
+
+    .home-hero {
+        min-height: auto;
+        padding: 2rem 1.5rem;
+    }
+
+    .feature-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .hero-actions {
+        flex-direction: column;
+    }
+
+    .hero-primary,
+    .hero-secondary {
+        text-align: center;
+    }
+}
+
+
+/* Disabled homepage buttons */
+
+.auth-required[aria-disabled="true"] {
+    opacity: 0.4;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+
+/* Advertisement layout for main application pages */
+
+.page-with-ads {
+    display: grid;
+    grid-template-columns:
+        minmax(160px, 1fr)
+        minmax(0, 700px)
+        minmax(160px, 1fr);
+    gap: 1.5rem;
+    max-width: 1500px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+    align-items: start;
+}
+
+.page-with-ads > main {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    box-sizing: border-box;
+    margin: 3rem 0;
+    padding: 0;
+}
+
+.side-ad {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 3rem;
+}
+
+.ad-label {
+    font-size: 0.7rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.side-ad img {
+    display: block;
+    width: 100%;
+    max-width: 200px;
+    height: auto;
+    border-radius: 8px;
+}
+
+/* Hide advertisements on narrow screens */
+
+@media (max-width: 1100px) {
+    .page-with-ads {
+        display: block;
+        padding: 0 1rem;
+    }
+
+    .page-with-ads > main {
+        max-width: 36rem;
+        margin: 3rem auto;
+    }
+
+    .side-ad {
+        display: none;
+    }
+}
+
