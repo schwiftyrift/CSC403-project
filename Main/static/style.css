@@ -1,5 +1,6 @@
 :root {
     --accent: #1f3864;
+    --on-accent: #fff; /* text on accent-filled buttons */
     --bg: #f6f7f9;
     --card: #fff;
     --text: #1b1f24;
@@ -12,6 +13,7 @@
 @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
         --accent: #7aa2f7;
+        --on-accent: #0b1020;
         --bg: #14171c;
         --card: #1d2229;
         --text: #e8ebf0;
@@ -25,6 +27,7 @@
 /* Manually selected dark theme */
 :root[data-theme="dark"] {
     --accent: #7aa2f7;
+    --on-accent: #0b1020;
     --bg: #14171c;
     --card: #1d2229;
     --text: #e8ebf0;
@@ -140,14 +143,10 @@ button {
     border-radius: 8px;
     border: 1px solid var(--accent);
     background: var(--accent);
-    color: #fff;
+    /* From the theme variables, not prefers-color-scheme, so choosing Light in Settings
+       still gets white text when the computer itself is in dark mode. */
+    color: var(--on-accent);
     cursor: pointer;
-}
-
-@media (prefers-color-scheme: dark) {
-    button {
-        color: #0b1020;
-    }
 }
 
 button.secondary {
@@ -447,11 +446,8 @@ button.loginButton {
     border-radius: 8px;
     border: 1px solid var(--accent);
     background: var(--accent);
-    color: #fff;
+    color: var(--on-accent);
     text-decoration: none;
-}
-@media (prefers-color-scheme: dark) {
-    #loginLink { color: #0b1020; }
 }
 #loginLink:hover { opacity: .9; }
 #loginLink:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
