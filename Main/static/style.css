@@ -643,3 +643,86 @@ button.danger {
     transform: translateY(-70%) rotate(45deg);
     pointer-events: none;
 }
+
+
+/* Homepage ribbon */
+
+.top-ribbon {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 70px;
+    padding: 0 2rem 0 5rem;
+    background: var(--card);
+    border-bottom: 1px solid var(--line);
+}
+
+.ribbon-title {
+    color: var(--text);
+    font-size: 1.25rem;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.ribbon-title:hover {
+    color: var(--accent);
+}
+
+.ribbon-nav {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.ribbon-login {
+    display: inline-block;
+    padding: 0.65rem 1.25rem;
+    border-radius: 8px;
+    background: var(--accent);
+    color: white;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.ribbon-login:hover {
+    filter: brightness(0.9);
+}
+
+@media (max-width: 600px) {
+    .top-ribbon {
+        padding: 0 1rem 0 4rem;
+    }
+
+    .ribbon-title {
+        font-size: 1rem;
+    }
+
+    .ribbon-login {
+        padding: 0.5rem 0.75rem;
+    }
+}
+
+.menu-button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+
+/* Ribbon profile icon */
+
+.ribbon-profile {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    background: var(--bg);
+    color: var(--text);
+}
+
+.ribbon-profile[hidden],
+.ribbon-login[hidden] {
+    display: none;
+}

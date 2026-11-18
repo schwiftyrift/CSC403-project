@@ -120,3 +120,47 @@ if (themeSelect) {
         } catch (_) {}
     });
 }
+
+
+// Shared navigation authentication
+
+const ribbonLogin = document.getElementById("ribbonLogin");
+const ribbonProfile = document.getElementById("ribbonProfile");
+
+async function checkNavigationLogin() {
+    const menuButton = document.getElementById("menuButton");
+    const sidebar = document.getElementById("sidebar");
+
+    // Only run on pages with the navigation elements.
+    if (!menuButton) return;
+
+    menuButton.disabled = true;
+
+    try {
+        const response = await fetch("/auth/me");
+
+        if (!response.ok) {
+            throw new Error("Not authenticated");
+        }
+
+        // User is logged in
+        menuButton.disabled = false;
+
+        if (ribbonLogin) ribbonLogin.hidden = true;
+        if (ribbonProfile) ribbonProfile.hidden = false;
+
+    } catch (error) {
+        // User is logged out
+        menuButton.disabled = true;
+
+        if (ribbonLogin) ribbonLogin.hidden = false;
+        if (ribbonProfile) ribbonProfile.hidden = true;
+
+        if (sidebar) sidebar.classList.remove("open");
+
+        menuButton.classList.remove("open");
+        menuButton.setAttribute("aria-expanded", "false");
+    }
+}
+
+checkNavigationLogin();

@@ -1,4 +1,3 @@
-
 <!doctype html>
 <html lang="en">
 <head>
@@ -7,17 +6,56 @@
     <title>Home - Transcript Service</title>
     <link rel="stylesheet" href="/style.css?v=2">
 </head>
+
+
+<header class="top-ribbon">
+    <a href="/" class="ribbon-title">Transcript Service</a>
+
+    <nav class="ribbon-nav" aria-label="Main navigation">
+        <a href="/login.html" id="ribbonLogin" class="ribbon-login">
+            Log In
+        </a>
+
+        <span
+            id="ribbonProfile"
+            class="ribbon-profile"
+            aria-label="Signed in"
+            title="Signed in"
+            hidden
+        >
+            <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+            >
+                <circle cx="12" cy="12" r="10"/>
+                <circle cx="12" cy="10" r="3"/>
+                <path d="M5.5 19a7 7 0 0 1 13 0"/>
+            </svg>
+        </span>
+    </nav>
+</header>
+
+
 <body>
 
-    <button
-        type="button"
-        id="menuButton"
-        class="menu-button"
-        aria-label="Open navigation menu"
-        aria-expanded="false"
-    >
-        ☰
-    </button>
+<button
+    type="button"
+    id="menuButton"
+    class="menu-button"
+    aria-label="Open navigation menu"
+    aria-expanded="false"
+    disabled
+>
+    ☰
+</button>
 
     <nav id="sidebar" class="sidebar">
         <div class="sidebar-top">
@@ -64,7 +102,7 @@
         </section>
     </main>
 
-    <script type="module" src="/home.js"></script>
+    <script type="module" src="/index.js"></script>
 </body>
 </html>
 
