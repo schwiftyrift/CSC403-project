@@ -163,7 +163,8 @@ def test_old_and_pre_feature_finished_jobs_are_left_out(client, worker):
     assert activity(client) == {}
 
 def test_signed_in_pages_load_the_progress_script(client):
-    for page in ("index", "history", "settings", "transcribe", "archive", "verify"):
+    # Upload moved off the public landing page; Your uploads is history.html, not archive.html.
+    for page in ("upload", "history", "settings", "transcribe", "verify"):
         assert "/job-progress.js" in (STATIC / f"{page}.html").read_text(encoding="utf-8"), page
     assert client.get("/job-progress.js").headers["cache-control"] == "no-cache"
 

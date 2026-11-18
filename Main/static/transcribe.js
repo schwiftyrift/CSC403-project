@@ -1,5 +1,6 @@
 import { $, api } from "./utils.js"
 import { showTranscript } from "./transcript-player.js";
+import { setupOutputs } from "./styled-outputs.js";
 
 // Opened as /transcribe.html?job=<job_id> from "View transcript" in Your uploads, or with no
 // job to show the newest transcript. A job that is still being transcribed shows its progress
@@ -46,6 +47,7 @@ async function showTranscriptOf(url) {
   transcriptText.textContent = data.text;
   say(data.text.trim() ? "" : "No speech was found in this recording.");
   showTranscript(transcriptText, data.job_id); // swaps in the player when the transcript has timestamps
+  setupOutputs(data.job_id, transcriptText);
 }
 
 function showStatus(job) {

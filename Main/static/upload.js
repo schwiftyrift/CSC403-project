@@ -1,4 +1,6 @@
 import { $, api, humanSize, say, setAccount } from "./utils.js";
+import { outputControls } from "./output-controls.js";
+const outputSelections = outputControls($("outputSelections"));
 
 const API_URL = "/jobs";
 const ALLOWED = [".mp3", ".wav", ".m4a", ".mp4", ".mov"];
@@ -62,6 +64,8 @@ go.addEventListener("click", () => {
   if (!selected || !signedIn) return;
   const form = new FormData();
   form.append("file", selected);
+  form.append("content_type", outputSelections.get().content_type);
+  form.append("formats", JSON.stringify(outputSelections.get().formats));
   const xhr = new XMLHttpRequest();
   xhr.open("POST", API_URL);
   go.disabled = true; bar.className = "show"; bar.value = 0; result.className = ""; say(statusEl, "Uploading...");
