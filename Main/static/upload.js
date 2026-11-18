@@ -72,6 +72,7 @@ go.addEventListener("click", () => {
     try { body = JSON.parse(xhr.responseText); } catch (_) {}
     if (xhr.status >= 200 && xhr.status < 300) {
         say(statusEl, "Upload complete.", "ok");
+        window.dispatchEvent(new Event("jobs:refresh"));
         result.textContent = `${body.filename} uploaded. You'll get a notification here when the transcript is ready.`; result.className = "show";
     } else {
         if (xhr.status === 401){

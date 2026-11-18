@@ -3,6 +3,16 @@ import sqlite3
 from contextlib import contextmanager
 
 SCHEMA = """
+CREATE TABLE IF NOT EXISTS output_preferences (
+ job_id TEXT PRIMARY KEY REFERENCES jobs(job_id) ON DELETE CASCADE,
+ content_type TEXT NOT NULL, formats TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS styled_outputs (
+ transcript_id TEXT NOT NULL REFERENCES transcripts(id) ON DELETE CASCADE,
+ format TEXT NOT NULL, status TEXT NOT NULL, text TEXT NOT NULL DEFAULT '',
+ error TEXT NOT NULL DEFAULT '', updated_at REAL NOT NULL,
+ PRIMARY KEY (transcript_id, format)
+);
 CREATE TABLE IF NOT EXISTS users (
  id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE,
  password_hash TEXT NOT NULL, created_at REAL NOT NULL

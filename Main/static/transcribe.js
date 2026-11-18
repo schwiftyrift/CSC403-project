@@ -1,5 +1,6 @@
 import { $, api } from "./utils.js"
 import { showTranscript } from "./transcript-player.js";
+import { setupOutputs } from "./styled-outputs.js";
 
 // Opened as /transcribe.html?job=<job_id> from "View transcript" in Your uploads, or with no
 // job to show the newest transcript. A job that is still being transcribed shows its progress
@@ -39,13 +40,19 @@ function fail(error) {
 }
 
 async function showTranscriptOf(url) {
+  if (loaded) return;
   loaded = true; // set before the request, so a second "jobs:update" can't load it twice
   const data = await api(url);
   transcriptFilename.textContent = data.filename;
   document.title = `${data.filename} - Transcript Service`;
   transcriptText.textContent = data.text;
+  $("plainTranscriptText").textContent = data.text;
   say(data.text.trim() ? "" : "No speech was found in this recording.");
-  showTranscript(transcriptText, data.job_id); // swaps in the player when the transcript has timestamps
+  // Keep a readable plain copy when the player replaces the original text with timed sentences.
+  showTranscript(transcriptText, data.job_id).then(shown => {
+    $("plainTranscriptSection").hidden = !shown || !data.text.trim();
+  });
+  setupOutputs(data.job_id, transcriptText);
 }
 
 function showStatus(job) {

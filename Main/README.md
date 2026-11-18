@@ -17,8 +17,14 @@ The separate `/login.html` page uses the login design from the team's `test` bra
 connected to the account API. Successful login returns to the upload page;
 logout revokes the session and opens the login page. API documentation: `/docs`.
 Tests: `.\.venv\Scripts\python.exe -m pytest -q`.
-Docker (from the repo root): `docker compose up --build` starts the app and the transcription
-worker; open http://localhost:8087/.
+Docker (from the repo root): `docker compose up --build` starts the app, transcription workers,
+and local study-output services; open http://localhost:8087/. The text model must also be downloaded
+once; see Deployment configuration below.
+
+For study generation without Docker, start Ollama separately and run `ollama pull qwen3:1.7b`.
+In a second terminal, from `Main` with the same virtual environment and `DATA_DIR` as the API, run
+`.\.venv\Scripts\python.exe -m service.output_worker`. The worker uses `http://localhost:11434`
+unless `OLLAMA_URL` is set. Audio transcription still needs the existing Whisper worker.
 
 ## Accounts and data
 
@@ -30,6 +36,9 @@ Email addresses are normalized to lowercase; passwords must be 12-128 characters
 SQLite stores users, sessions, and jobs in `DATA_DIR/accounts.sqlite3`.
 Transcripts are stored in `transcripts`, their timestamps in `transcript_segments` and `transcript_words`,
 and transcription progress in `job_progress`; existing records are preserved.
+Content/output selections are stored in `output_preferences`, and generated results and their
+statuses in `styled_outputs`. Results belong to a particular transcript, so a replacement transcript
+does not reuse results generated from an older attempt. Deleting the upload also deletes these rows.
 Uploaded bytes live in `DATA_DIR/uploads`. The default DATA_DIR is `./data`;
 Docker uses `/data` in the existing persistent volume. Back up the database and
 uploads together while the service is stopped.
@@ -53,6 +62,41 @@ is available yet), `transcribing`, and then `done` or `failed`. A file with no r
 While transcribing, the worker stores progress in `job_progress` every 2 seconds. `GET /jobs/activity`
 turns that into a percent and an estimated time left, and keeps finished jobs for 24 hours. A page
 gets the progress panel and milestone notifications by including `job-progress.js` with one script tag.
+
+## Study outputs
+
+The Upload page accepts the recording and automatically generates only its plain transcript.
+Open View transcript from Your uploads to select Summary, Important topics, Study guide, or
+Video captions independently. All checkboxes start unchecked when the page opens. Checking an
+output does not generate it. Existing saved outputs are labeled "Saved — ready to download."
+Document uploads are not supported.
+
+After transcription finishes, open View transcript, select the desired formats, and click Generate
+selected outputs. Only that action requests additional outputs. Text outputs use `output-worker`
+and the local Ollama service; captions use the existing timestamp formatter immediately, without
+calling Ollama. Summaries are one paragraph of up to 500 words; topics are bullets with explanations;
+study guides have up to five short-answer questions and a separate answer section. Generation
+requests English material based only on the transcript. Whisper's language detection is unchanged.
+
+Open View transcript from Your uploads to see the original transcript and player, with
+"What would you like from your transcription?" below. Select formats there to generate results
+for existing uploads or regenerate a saved result.
+Generated material is available only through the shared TXT and DOCX download buttons at the
+bottom; its text is not displayed on the page. With one output checked, the buttons download
+that format. With multiple outputs checked, use Output to download to choose one. Buttons are
+disabled until the chosen format finishes generating. Unchecking an output does not delete its
+saved result; check it again to download it later. Choosing Video captions switches the shared
+buttons to SRT and VTT. Each file includes its output type in its name, for example
+`recording-summary.docx`, `recording-topics.docx`, `recording-study_guide.docx`, and
+`recording-captions.srt`, so different outputs do not overwrite one another. PDF export is not included.
+
+Generation is separate from transcription: a generation failure leaves the original transcript usable.
+Failed outputs require Retry after the underlying issue is fixed. During regeneration, previous text
+is retained until a replacement succeeds; downloads become available again when generation finishes.
+An interrupted generation is requeued after ten minutes. CPU generation can take several minutes.
+Transcripts longer than 16,000 characters are rejected for study generation with an explanatory
+message; original transcript and caption downloads remain available. Review generated material
+against the transcript, since source-only instructions cannot guarantee factual accuracy.
 
 ## Transcript downloads
 
@@ -142,7 +186,7 @@ one a minute and five a day per account; failed sends do not count.
 | POST | /auth/password-reset | Set a new password from a link (`token`, `password` JSON); signs in |
 | POST | /auth/password | Change password when signed in (`current_password`, `new_password` JSON) |
 | POST | /auth/password-reset-email | Email a reset link to the signed-in user |
-| POST | /jobs | Upload multipart `file` |
+| POST | /jobs | Upload multipart `file`, optional `content_type` and JSON-encoded `formats` |
 | GET | /jobs/limits | Allowed extensions and max upload size (no login needed) |
 | GET | /jobs | Current user's uploads |
 | GET | /jobs/activity | Unfinished and recently finished jobs with stage, percent, and estimated time |
@@ -152,6 +196,11 @@ one a minute and five a day per account; failed sends do not count.
 | GET | /jobs/{id}/transcript.docx | Download the transcript as a formatted Word document |
 | GET | /jobs/{id}/captions.srt | Download captions as SubRip |
 | GET | /jobs/{id}/captions.vtt | Download captions as WebVTT |
+| GET | /jobs/{id}/output-preferences | Read saved content type and requested formats |
+| PUT | /jobs/{id}/output-preferences | Save `content_type` and `formats` as JSON |
+| GET | /jobs/{id}/outputs | Read generated outputs, statuses, and errors for the newest transcript |
+| POST | /jobs/{id}/outputs/{format} | Queue generation or regeneration; returns 202 |
+| GET | /jobs/{id}/outputs/{format}/download/{extension} | Download a finished output as `txt` or `docx` |
 | DELETE | /jobs/{id} | Delete one upload, its stored file, and its transcript |
 | DELETE | /jobs | Delete all of the current user's uploads and transcripts |
 
@@ -159,6 +208,15 @@ Lists accept `limit` (1-100, default 50) and `offset` (default 0).
 The history page (`/history.html`) pages
 through uploads, offers list and grid layouts, and deletes one upload or all of them.
 Use a cookie jar with API clients. Browser writes must be from the same origin.
+
+Content types are `general`, `lecture`, `video`, and `notes`; generated formats are `summary`,
+`topics`, `study_guide`, and `captions`. Content types remain supported by the API for compatibility;
+the page uses output checkboxes instead. Uploads default to `general` and no generated formats. Generation
+statuses are `queued`, `generating`, `done`, and `failed`. Output downloads return 409 until
+the selected output is ready. Saving preferences only remembers selections; it does not queue
+generation. The generation route queues explicitly requested text formats and supports retry and regeneration.
+Captions become ready immediately if timestamps exist. Caption output downloads accept `srt` and
+`vtt`; text output downloads accept `txt` and `docx`.
 
 ## Adding account features
 
@@ -185,7 +243,105 @@ Never accept an owner ID from the browser as proof of authorization.
   outgoing mail server. For Resend: `smtp.resend.com`, 587, `resend`, and an API key.
 - `MAIL_FROM`: sender, e.g. `Transcript Service <no-reply@mail.example.com>`, on a domain
   your mail provider has verified.
+- `OUTPUT_MODEL`: local text model used by `output-worker` (default `qwen3:1.7b`).
+  Set it in the repository-root `.env`; Compose passes it to the worker. Pull the same model in Ollama.
+- `OLLAMA_URL`: Ollama address used by `output-worker`. Compose sets `http://ollama:11434`;
+  outside Docker the default is `http://localhost:11434`. To use another address with Compose,
+  change the output-worker environment in `docker-compose.yml`; `.env` alone does not override it.
 
 Before public deployment, configure HTTPS, secure cookies, and proxy-level login
 rate limiting. MFA, account deletion, and storage
 quotas are not implemented in this initial foundation.
+
+### Server setup and upgrades
+
+Run these commands from the server's existing repository root, alongside `docker-compose.yml`.
+Use the same checkout directory, Compose project name, and existing data volumes as the current
+deployment. Before upgrading, stop the service and back up the database and uploads together as
+described under Accounts and data. Update the deployed branch to include the study-output changes,
+keeping the server's existing `.env` and reverse-proxy configuration.
+
+The stack now includes `api`, `worker` (Whisper), `ollama` (local text inference), and `output-worker`.
+No hosted AI account or API key is required. The server needs access to download container images
+and models during setup. Allow disk space for the new model and several GB of additional inference
+memory alongside the existing Whisper workers; start testing with short recordings.
+
+```sh
+docker compose config --quiet
+docker compose up -d --build
+docker compose exec ollama ollama pull qwen3:1.7b
+docker compose exec ollama ollama list
+docker compose ps
+```
+
+If `OUTPUT_MODEL` in `.env` is different, replace `qwen3:1.7b` in the pull command with that
+exact model name. The default model download is approximately 1.4 GB. Model downloads are not
+automatic: wait for the pull to finish before requesting study outputs. If a request failed before
+the model was ready, select that output and use Retry in the shared download area after installation.
+
+`output-worker` uses the existing API image build and shares its `/data` volume. Tables are
+created automatically at startup without replacing existing records; no manual SQL migration is
+needed. Keep one output-worker replica. The existing configuration requests three Whisper workers
+with four threads each. If the server needs a lighter test configuration, start with one:
+
+```sh
+docker compose up -d --build --scale worker=1
+```
+
+The existing `uploads` and `whisper_models` volumes retain their names. The new `output_models`
+volume stores Ollama models across container rebuilds. Do not use `docker compose down -v` when
+upgrading or stopping the server, because it removes these volumes. `docker compose down` stops
+the stack while keeping its volumes.
+
+Keep the reverse proxy pointed to the existing API port, 8087 on the host. Ollama is accessed
+only on the internal Compose network; port 11434 does not need to be exposed publicly. Rebuilding
+the API is necessary to serve the new Upload page and transcript controls. After deploying, refresh
+the browser before testing through the server's normal public address.
+
+### Server verification
+
+1. Open the deployed site, sign in, and choose Start Transcribing to reach `/upload.html`.
+2. Upload a short English recording. Wait for transcription and confirm no extra outputs were
+   generated automatically. Additional-output choices should appear only on View transcript, initially unchecked.
+3. Open View transcript from Your uploads, select Summary and Important topics, and click Generate
+   selected outputs. Wait for both outputs to finish. Check the original player and each output's status.
+   Use Output to download to choose each generated format, download TXT and DOCX, and check
+   source accuracy in the files; also check the original
+   transcript and caption downloads.
+4. Select Study guide on that existing upload and generate it. Download it and check the questions
+   and answers, then refresh the page and select Study guide again to confirm the saved result is available.
+   Select Video captions, generate it, and download SRT and VTT using the same bottom buttons.
+   Confirm different output types have distinct filenames.
+5. On a test deployment, stop Ollama with `docker compose stop ollama` and regenerate an output.
+   Confirm the failure leaves the transcript usable. Run `docker compose start ollama`, then Retry
+   and confirm generation completes. This step temporarily interrupts all study generation.
+
+Automated tests use temporary data and mock model generation; the browser checks above verify
+the installed model and real server setup. The production image excludes the tests and transcription
+source needed by some tests. Mount the checkout read-only for a one-off test container:
+
+```sh
+docker compose run --rm --no-deps -v .:/workspace:ro -w /workspace/Main api python -m pytest -q -p no:cacheprovider
+```
+
+### Troubleshooting study generation
+
+Check service state, installed models, and recent logs first:
+
+```sh
+docker compose ps
+docker compose exec ollama ollama list
+docker compose logs --tail=100 api worker output-worker ollama
+```
+
+| Symptom | Check or action |
+| --- | --- |
+| Original transcript is not ready | Check `worker` logs first. Study generation waits for Whisper to finish. |
+| Transcript works, output stays queued | Confirm `output-worker` is running and shares the API's `uploads:/data` volume. Run `docker compose up -d output-worker` if it is stopped. |
+| Local generation is unavailable | Confirm Ollama is running, the configured model appears in `ollama list`, and `OLLAMA_URL` matches the Compose service. Check both services' logs, correct the cause, then Retry. |
+| Model name changed but generation still uses the old one | Recreate the worker with `docker compose up -d output-worker` after editing `.env`, and pull the newly configured model. Restart alone does not apply changed environment settings. |
+| Container exits or generation is very slow | Check host memory, CPU load, and Ollama logs. Reduce Whisper concurrency with `--scale worker=1` and use shorter test recordings. |
+| Output remains generating after a worker restart | Interrupted work is requeued after ten minutes. Check the worker logs if it does not recover. |
+| Recording is rejected for study generation | Check for an empty transcript or the 16,000-character limit. Use a shorter recording; transcription downloads still work. |
+| Model response is invalid or exceeds the summary limit | Retry; the worker validates model output before saving a replacement. Check source length and model configuration if failures repeat. |
+| New controls are missing | Confirm the deployed branch includes the UI changes, rebuild `api`, and refresh the browser. Selections are on each transcript's View transcript page, not Upload or Home. |

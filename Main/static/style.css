@@ -9,6 +9,19 @@
     --err: #b00020;
     --ok: #1a7f37;
 }
+/* US-24 additions stay within the existing cards and color palette. */
+#outputSelections { margin: 1rem 0; }
+#outputSelections select, #downloadOutput {
+    font: inherit; color: var(--text); background: var(--card);
+    border: 1px solid var(--line); border-radius: 6px; padding: .4rem;
+}
+#outputSelections fieldset { border: 1px solid var(--line); margin-top: .75rem; }
+#outputSelections fieldset label { display: block; padding: .25rem 0; }
+#outputSelections p { font-size: .85rem; color: var(--muted); }
+#outputPanel { overflow-wrap: anywhere; line-height: 1.6; }
+#outputPanel { white-space: pre-wrap; }
+.output-actions { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .75rem; }
+
 /* System preference: dark */
 @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
