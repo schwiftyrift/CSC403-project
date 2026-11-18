@@ -1,4 +1,4 @@
-import "./utils.js"
+import "./utils.js";
 
 const PAGE_SIZE = 50;
 const VIEW_KEY = "historyView";
@@ -116,14 +116,6 @@ function viewLink(job) {
   return a;
 }
 
-function viewLink(job) {
-  const a = document.createElement("a");
-  a.className = "view-transcript";
-  a.href = `/transcribe.html?job=${encodeURIComponent(job.job_id)}`;
-  a.textContent = "View transcript";
-  a.setAttribute("aria-label", `View the transcript of ${job.filename}`);
-  return a;
-}
 
 function render(job) {
   const article = document.createElement("article");
@@ -356,13 +348,6 @@ function setSort(sort) {
 $("refreshHistory").addEventListener("click", () => { say(""); loadHistory().catch(error => say(error.message, "error")); });
 $("moreHistory").addEventListener("click", () => loadHistory(true).catch(error => say(error.message, "error")));
 
-const menuButton = $("menuButton");
-const sideBar = $("sidebar");
-menuButton.addEventListener("click", () => {
-  sideBar.classList.toggle("open");
-  menuButton.classList.toggle("open");
-  menuButton.setAttribute("aria-expanded", sideBar.classList.contains("open"));
-});
 
 $("logout").addEventListener("click", async () => {
   try { await api("/auth/logout", {method: "POST"}); window.location.replace("/login.html"); }

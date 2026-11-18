@@ -1,77 +1,70 @@
+
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Transcript Service</title>
-  <link rel="stylesheet" href="/style.css?v=2">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Home - Transcript Service</title>
+    <link rel="stylesheet" href="/style.css?v=2">
 </head>
 <body>
 
-<button
-  type="button"
-  id="menuButton"
-  class="menu-button"
-  aria-label="Open navigation menu"
-  aria-expanded="false"
->
-  ☰
-</button>
+    <button
+        type="button"
+        id="menuButton"
+        class="menu-button"
+        aria-label="Open navigation menu"
+        aria-expanded="false"
+    >
+        ☰
+    </button>
 
-<nav id="sidebar" class="sidebar">
-  <div class="sidebar-top">
-    <h2>Transcript Service</h2>
-    <a href="/">Home</a>
-    <a href="/history.html">Your uploads</a>
-    <div class="settings-dropdown">
-      <button type="button" id="settingsToggle" aria-expanded="false" aria-controls="settingsOptions">
-        Settings
-        <span class="dropdown-arrow">▸</span>
-      </button>
+    <nav id="sidebar" class="sidebar">
+        <div class="sidebar-top">
+            <h2>Transcript Service</h2>
 
-      <div id="settingsOptions" class="settings-options" hidden>
-        <a href="/settings.html#accountSettings">Account Settings</a>
-        <a href="/settings.html#siteSettings">Site/Theme Settings</a>
-      </div>
-    </div>
-  </div>
+            <a href="/">Home</a>
+            <a href="/upload.html">Upload</a>
+            <a href="/history.html">Your uploads</a>
 
-  <button type="button" id="logout" class="logout">Log Out</button>
-</nav>
+            <div class="settings-dropdown">
+                <button
+                    type="button"
+                    id="settingsToggle"
+                    aria-expanded="false"
+                    aria-controls="settingsOptions"
+                >
+                    Settings
+                    <span class="dropdown-arrow">▸</span>
+                </button>
 
-<main>
-  <h1>Transcript Service</h1>
-  <p class="sub">Upload an audio or video file and it will be transcribed automatically.</p>
+                <div id="settingsOptions" class="settings-options" hidden>
+                    <a href="/settings.html#accountSettings">Account Settings</a>
+                    <a href="/settings.html#siteSettings">Site/Theme Settings</a>
+                </div>
+            </div>
+        </div>
 
-  <section class="card" id="account">
-    <h2>Account</h2>
-    <p id="accountStatus" role="status">Sign in to upload files and view your history.</p>
-    <a id="loginLink" href="/login.html">Log in or Create an account</a>
-  </section>
-  <div class="card" id="upload">
-    <label id="drop" for="file">
-      <strong>Drag a file here</strong>
-      <span id="dropHint">or click to choose one</span>
-    </label>
-    <input type="file" id="file">
+        <button type="button" id="logout" class="logout" hidden>
+            Log Out
+        </button>
+    </nav>
 
-    <div id="chosen">
-      <div><div id="name"></div><div id="size"></div></div>
-      <button type="button" class="secondary" id="clear">Remove</button>
-    </div>
+    <main>
+        <h1>Transcript Service</h1>
 
-    <progress id="bar" max="100" value="0"></progress>
-    <div id="uploadProgressText"></div>
+        <section class="card">
+            <h2>Welcome</h2>
+            <p>
+                Upload audio and video recordings, generate transcripts,
+                and manage your files from one place.
+            </p>
 
-    <div class="row">
-      <button type="button" id="go" disabled>Upload</button>
-    </div>
-    <div id="status" role="status" aria-live="polite"></div>
-    <pre id="result"></pre>
-  </div>
-</main>
-<script type="module" src="/index.js"></script>
-<script src="/verify-banner.js"></script>
-<script src="/job-progress.js"></script>
+            <a href="/upload.html">Go to Uploads</a>
+        </section>
+    </main>
+
+    <script type="module" src="/home.js"></script>
 </body>
 </html>
+
