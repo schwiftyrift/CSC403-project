@@ -1,3 +1,5 @@
+import "./utils.js"
+
 const PAGE_SIZE = 50;
 const VIEW_KEY = "historyView";
 const STATUS_TEXT = {queued: "Waiting to be transcribed", processing: "Transcribing", done: "Transcript ready", failed: "Transcription failed"};

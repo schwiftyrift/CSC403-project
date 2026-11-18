@@ -22,8 +22,18 @@
   <div class="sidebar-top">
     <h2>Transcript Service</h2>
     <a href="/">Home</a>
-    <a href="/history.html" aria-current="page">Your uploads</a>
-    <a href="/settings.html">Settings</a>
+    <a href="/history.html">Your uploads</a>
+    <div class="settings-dropdown">
+      <button type="button" id="settingsToggle" aria-expanded="false" aria-controls="settingsOptions">
+        Settings
+        <span class="dropdown-arrow">▸</span>
+      </button>
+
+      <div id="settingsOptions" class="settings-options" hidden>
+        <a href="/settings.html#accountSettings">Account Settings</a>
+        <a href="/settings.html#siteSettings">Site/Theme Settings</a>
+      </div>
+    </div>
   </div>
 
   <button type="button" id="logout" class="logout">Log Out</button>
@@ -176,7 +186,7 @@
     <button type="button" id="moreHistory" hidden>Load more</button>
   </section>
 </main>
-<script src="/history.js"></script>
+<script tpye="module" src="/history.js"></script>
 <script src="/verify-banner.js"></script>
 <script src="/job-progress.js"></script>
 </body>

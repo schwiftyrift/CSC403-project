@@ -6,9 +6,7 @@
         <title>Transcript Service</title>
         <link rel="stylesheet" href="/style.css">
     </head>
-
-    
-    
+ 
     <body class="transcribePage">
         <button
         type="button"
@@ -20,29 +18,39 @@
         ☰
         </button>
 
-        <nav id="sidebar" class="sidebar">
-        <div class="sidebar-top">
-            <h2>Transcript Service</h2>
-            <a href="/">Home</a>
-            <a href="/history.html">Your uploads</a>
-            <a href="/settings.html">Settings</a>
-        </div>
+    <nav id="sidebar" class="sidebar">
+    <div class="sidebar-top">
+        <h2>Transcript Service</h2>
+        <a href="/">Home</a>
+        <a href="/history.html">Your uploads</a>
+        <div class="settings-dropdown">
+        <button type="button" id="settingsToggle" aria-expanded="false" aria-controls="settingsOptions">
+            Settings
+            <span class="dropdown-arrow">▸</span>
+        </button>
 
-        <button type="button" id="logout" class="logout" hidden>Log Out</button>
-        </nav>
+        <div id="settingsOptions" class="settings-options" hidden>
+            <a href="/settings.html#accountSettings">Account Settings</a>
+            <a href="/settings.html#siteSettings">Site/Theme Settings</a>
+        </div>
+        </div>
+    </div>
+
+    <button type="button" id="logout" class="logout">Log Out</button>
+    </nav>
 
         
-        <main>
-            <h1>Transcript Service</h1>
-            
-            <div id="transcribeContainer" class="transcribeContainer">
-                <section class="card">
-                    <h2 id="transcriptFilename">Transcript</h2>
-                    <p id="transcriptStatus" role="status" aria-live="polite"></p>
-                    <div id="transcriptText"></div>
-                </section>
-            </div>
-        </main>
+    <main>
+        <h1>Transcript Service</h1>
+        
+        <div id="transcribeContainer" class="transcribeContainer">
+            <section class="card">
+                <h2 id="transcriptFilename">Transcript</h2>
+                <p id="transcriptStatus" role="status" aria-live="polite"></p>
+                <div id="transcriptText"></div>
+            </section>
+        </div>
+    </main>
     <script type="module" src="/transcribe.js"></script>
     <script src="/job-progress.js"></script>
     </body>

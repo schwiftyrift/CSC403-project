@@ -1,3 +1,5 @@
+import "./utils.js";
+
 const $ = (id) => document.getElementById(id);
 let user = null;
 
@@ -53,13 +55,6 @@ $("emailResetLink").addEventListener("click", async () => {
   $("emailResetLink").disabled = false;
 });
 
-const menuButton = $("menuButton");
-const sideBar = $("sidebar");
-menuButton.addEventListener("click", () => {
-  sideBar.classList.toggle("open");
-  menuButton.classList.toggle("open");
-  menuButton.setAttribute("aria-expanded", sideBar.classList.contains("open"));
-});
 
 $("logout").addEventListener("click", async () => {
   try { await api("/auth/logout", {method: "POST"}); window.location.replace("/login.html"); }
@@ -71,4 +66,8 @@ api("/auth/me").then(me => {
   $("signedInAs").textContent = `Signed in as ${me.email}`;
   $("passwordCard").hidden = false;
   $("resetCard").hidden = false;
+
+  if (window.location.hash) {
+    document.querySelector(window.location.hash)?.scrollIntoView();
+  }
 }).catch(error => say($("signedInAs"), error.message, "error"));

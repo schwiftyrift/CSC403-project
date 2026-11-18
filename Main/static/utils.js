@@ -31,6 +31,19 @@ if (menuButton && sideBar){
       menuButton.setAttribute("aria-expanded", isOpen);
     });
 }
+
+const settingsToggle = document.getElementById("settingsToggle");
+const settingsOptions = document.getElementById("settingsOptions");
+
+if (settingsToggle && settingsOptions) {
+    settingsToggle.addEventListener("click", () => {
+        const isExpanded = settingsToggle.getAttribute("aria-expanded") === "true";
+
+        settingsToggle.setAttribute("aria-expanded", String(!isExpanded));
+        settingsOptions.hidden = isExpanded;
+    });
+}
+
 const logoutButton = $("logout");
 if (logoutButton){
     logoutButton.addEventListener("click", async () => {
@@ -72,4 +85,38 @@ export function setAccount(user) {
   }
 
   return signedIn;
+}
+
+const THEME_KEY = "siteTheme";
+
+function applyTheme(theme) {
+    if (theme === "system") {
+        document.documentElement.removeAttribute("data-theme");
+    } else {
+        document.documentElement.setAttribute("data-theme", theme);
+    }
+}
+
+let savedTheme = "system";
+
+try {
+    savedTheme = localStorage.getItem(THEME_KEY) || "system";
+} catch (_) {}
+
+applyTheme(savedTheme);
+
+const themeSelect = document.getElementById("themeSelect");
+
+if (themeSelect) {
+    themeSelect.value = savedTheme;
+
+    themeSelect.addEventListener("change", () => {
+        const selectedTheme = themeSelect.value;
+
+        applyTheme(selectedTheme);
+
+        try {
+            localStorage.setItem(THEME_KEY, selectedTheme);
+        } catch (_) {}
+    });
 }
