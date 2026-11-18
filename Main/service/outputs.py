@@ -10,17 +10,17 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 from .auth import current_user
 from .database import connect
-from .jobs import attachment, newest_transcript, owned_job
+from .jobs import CAPTION_FORMATS, attachment, caption_cues, newest_transcript, owned_job
 from .transcript_doc import DOCX_TYPE, clean, plain_title_style
 
 router = APIRouter(tags=["outputs"])
 CONTENT_TYPES = {"general", "lecture", "video", "notes"}
-OUTPUT_FORMATS = {"summary", "topics", "study_guide"}
+OUTPUT_FORMATS = {"summary", "topics", "study_guide", "captions"}
 
 
 class Preferences(BaseModel):
     content_type: str = "general"
-    formats: list[str] = Field(default_factory=list, max_length=3)
+    formats: list[str] = Field(default_factory=list, max_length=4)
 
 
 def validate_preferences(content_type, formats):
@@ -59,6 +59,11 @@ def generate_output(job_id: uuid.UUID, format: str, request: Request, user=Depen
         raise HTTPException(400, "Unsupported output format.")
     with connect(request.app.state.data_dir) as db:
         _, transcript = newest_transcript(db, job_id, user["id"])
+        if format == "captions":
+            caption_cues(db, transcript)
+            db.execute("INSERT INTO styled_outputs (transcript_id, format, status, updated_at) VALUES (?, ?, 'done', ?) ON CONFLICT(transcript_id, format) DO UPDATE SET status='done', error='', updated_at=excluded.updated_at",
+                       (transcript["id"], format, time.time()))
+            return {"status": "done"}
         if not transcript["text"].strip():
             raise HTTPException(409, "No speech was found, so there is no study material to generate.")
         db.execute("INSERT INTO styled_outputs (transcript_id, format, status, updated_at) VALUES (?, ?, 'queued', ?) ON CONFLICT(transcript_id, format) DO UPDATE SET status='queued', error='', updated_at=excluded.updated_at WHERE styled_outputs.status IN ('done', 'failed')",
@@ -68,11 +73,15 @@ def generate_output(job_id: uuid.UUID, format: str, request: Request, user=Depen
 
 @router.get("/jobs/{job_id}/outputs/{format}/download/{extension}")
 def download_output(job_id: uuid.UUID, format: str, extension: str, request: Request, user=Depends(current_user)):
-    if format not in OUTPUT_FORMATS or extension not in {"txt", "docx"}:
+    if format not in OUTPUT_FORMATS or extension not in ({"srt", "vtt"} if format == "captions" else {"txt", "docx"}):
         raise HTTPException(404, "Output format not found.")
     with connect(request.app.state.data_dir) as db:
         job, transcript = newest_transcript(db, job_id, user["id"])
         row = db.execute("SELECT * FROM styled_outputs WHERE transcript_id=? AND format=?", (transcript["id"], format)).fetchone()
+        if format == "captions" and row is not None and row["status"] == "done":
+            render, media_type = CAPTION_FORMATS[extension]
+            return Response(render(caption_cues(db, transcript)), media_type=media_type,
+                            headers=attachment(f"{Path(job['filename']).stem}-captions.{extension}"))
     if row is None or row["status"] != "done":
         raise HTTPException(409, "This output is not ready yet.")
     name = f"{Path(job['filename']).stem}-{format}.{extension}"

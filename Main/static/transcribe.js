@@ -40,13 +40,18 @@ function fail(error) {
 }
 
 async function showTranscriptOf(url) {
+  if (loaded) return;
   loaded = true; // set before the request, so a second "jobs:update" can't load it twice
   const data = await api(url);
   transcriptFilename.textContent = data.filename;
   document.title = `${data.filename} - Transcript Service`;
   transcriptText.textContent = data.text;
+  $("plainTranscriptText").textContent = data.text;
   say(data.text.trim() ? "" : "No speech was found in this recording.");
-  showTranscript(transcriptText, data.job_id); // swaps in the player when the transcript has timestamps
+  // Keep a readable plain copy when the player replaces the original text with timed sentences.
+  showTranscript(transcriptText, data.job_id).then(shown => {
+    $("plainTranscriptSection").hidden = !shown || !data.text.trim();
+  });
   setupOutputs(data.job_id, transcriptText);
 }
 

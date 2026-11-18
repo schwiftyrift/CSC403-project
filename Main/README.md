@@ -65,19 +65,30 @@ gets the progress panel and milestone notifications by including `job-progress.j
 
 ## Study outputs
 
-On `/upload.html`, choose General transcription, Lecture, Video captions, or Notes and select
-Summary, Important topics, or Study guide independently. Notes means an audio/video recording
-to turn into study material; document uploads are not supported. Lecture defaults to summary and
-topics, and Notes defaults to a study guide. The original transcript is always available.
+The Upload page accepts the recording and automatically generates only its plain transcript.
+Open View transcript from Your uploads to select Summary, Important topics, Study guide, or
+Video captions independently. All checkboxes start unchecked when the page opens. Checking an
+output does not generate it. Existing saved outputs are labeled "Saved — ready to download."
+Document uploads are not supported.
 
-After transcription finishes, `output-worker` generates selected formats through the local Ollama
-service. Summaries are one paragraph of up to 500 words; topics are bullets with explanations;
+After transcription finishes, open View transcript, select the desired formats, and click Generate
+selected outputs. Only that action requests additional outputs. Text outputs use `output-worker`
+and the local Ollama service; captions use the existing timestamp formatter immediately, without
+calling Ollama. Summaries are one paragraph of up to 500 words; topics are bullets with explanations;
 study guides have up to five short-answer questions and a separate answer section. Generation
 requests English material based only on the transcript. Whisper's language detection is unchanged.
 
-Open View transcript from Your uploads to switch output tabs, generate formats for existing uploads,
-or regenerate a saved result. Each generated format has its own TXT and DOCX downloads containing
-only that output. Video captions use the existing SRT/VTT download options. PDF export is not included.
+Open View transcript from Your uploads to see the original transcript and player, with
+"What would you like from your transcription?" below. Select formats there to generate results
+for existing uploads or regenerate a saved result.
+Generated material is available only through the shared TXT and DOCX download buttons at the
+bottom; its text is not displayed on the page. With one output checked, the buttons download
+that format. With multiple outputs checked, use Output to download to choose one. Buttons are
+disabled until the chosen format finishes generating. Unchecking an output does not delete its
+saved result; check it again to download it later. Choosing Video captions switches the shared
+buttons to SRT and VTT. Each file includes its output type in its name, for example
+`recording-summary.docx`, `recording-topics.docx`, `recording-study_guide.docx`, and
+`recording-captions.srt`, so different outputs do not overwrite one another. PDF export is not included.
 
 Generation is separate from transcription: a generation failure leaves the original transcript usable.
 Failed outputs require Retry after the underlying issue is fixed. During regeneration, previous text
@@ -199,10 +210,13 @@ through uploads, offers list and grid layouts, and deletes one upload or all of 
 Use a cookie jar with API clients. Browser writes must be from the same origin.
 
 Content types are `general`, `lecture`, `video`, and `notes`; generated formats are `summary`,
-`topics`, and `study_guide`. Uploads default to `general` and no generated formats. Generation
+`topics`, `study_guide`, and `captions`. Content types remain supported by the API for compatibility;
+the page uses output checkboxes instead. Uploads default to `general` and no generated formats. Generation
 statuses are `queued`, `generating`, `done`, and `failed`. Output downloads return 409 until
-the selected output is ready. Saving preferences lets the worker queue missing outputs after
-transcription; the generation route also supports explicit retry and regeneration.
+the selected output is ready. Saving preferences only remembers selections; it does not queue
+generation. The generation route queues explicitly requested text formats and supports retry and regeneration.
+Captions become ready immediately if timestamps exist. Caption output downloads accept `srt` and
+`vtt`; text output downloads accept `txt` and `docx`.
 
 ## Adding account features
 
@@ -263,7 +277,7 @@ docker compose ps
 If `OUTPUT_MODEL` in `.env` is different, replace `qwen3:1.7b` in the pull command with that
 exact model name. The default model download is approximately 1.4 GB. Model downloads are not
 automatic: wait for the pull to finish before requesting study outputs. If a request failed before
-the model was ready, use Retry on that output's tab after installation.
+the model was ready, select that output and use Retry in the shared download area after installation.
 
 `output-worker` uses the existing API image build and shares its `/data` volume. Tables are
 created automatically at startup without replacing existing records; no manual SQL migration is
@@ -287,13 +301,17 @@ the browser before testing through the server's normal public address.
 ### Server verification
 
 1. Open the deployed site, sign in, and choose Start Transcribing to reach `/upload.html`.
-2. Upload a short English recording with Lecture selected. Confirm Summary and Important topics
-   are checked, then wait for transcription and both outputs to finish.
-3. Open View transcript from Your uploads. Check the original player, the generated tabs, and
-   source accuracy. Download each generated output as TXT and DOCX; also check the original
+2. Upload a short English recording. Wait for transcription and confirm no extra outputs were
+   generated automatically. Additional-output choices should appear only on View transcript, initially unchecked.
+3. Open View transcript from Your uploads, select Summary and Important topics, and click Generate
+   selected outputs. Wait for both outputs to finish. Check the original player and each output's status.
+   Use Output to download to choose each generated format, download TXT and DOCX, and check
+   source accuracy in the files; also check the original
    transcript and caption downloads.
-4. Select Study guide on that existing upload and generate it. Check the questions and answers,
-   then refresh the page to confirm the result was saved.
+4. Select Study guide on that existing upload and generate it. Download it and check the questions
+   and answers, then refresh the page and select Study guide again to confirm the saved result is available.
+   Select Video captions, generate it, and download SRT and VTT using the same bottom buttons.
+   Confirm different output types have distinct filenames.
 5. On a test deployment, stop Ollama with `docker compose stop ollama` and regenerate an output.
    Confirm the failure leaves the transcript usable. Run `docker compose start ollama`, then Retry
    and confirm generation completes. This step temporarily interrupts all study generation.
@@ -326,4 +344,4 @@ docker compose logs --tail=100 api worker output-worker ollama
 | Output remains generating after a worker restart | Interrupted work is requeued after ten minutes. Check the worker logs if it does not recover. |
 | Recording is rejected for study generation | Check for an empty transcript or the 16,000-character limit. Use a shorter recording; transcription downloads still work. |
 | Model response is invalid or exceeds the summary limit | Retry; the worker validates model output before saving a replacement. Check source length and model configuration if failures repeat. |
-| New controls are missing | Confirm the deployed branch includes the UI changes, rebuild `api`, and refresh the browser. Selections are on `/upload.html`, not the home page. |
+| New controls are missing | Confirm the deployed branch includes the UI changes, rebuild `api`, and refresh the browser. Selections are on each transcript's View transcript page, not Upload or Home. |

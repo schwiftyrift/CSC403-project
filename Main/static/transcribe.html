@@ -93,14 +93,24 @@
                 <h2 id="transcriptFilename">Transcript</h2>
                 <p id="transcriptStatus" role="status" aria-live="polite"></p>
                 <div id="transcriptText"></div>
-                <section id="styledOutputs" aria-label="Study outputs" hidden>
-                    <h3>Study outputs</h3>
+                <section id="plainTranscriptSection" aria-labelledby="plainTranscriptHeading" hidden>
+                    <h3 id="plainTranscriptHeading">Plain transcript</h3>
+                    <p id="plainTranscriptText"></p>
+                </section>
+                <section id="styledOutputs" aria-label="What would you like from your transcription?" hidden>
+                    <h3>What would you like from your transcription?</h3>
                     <div id="outputSelections"></div>
                     <button id="generateOutputs" type="button">Generate selected outputs</button>
                     <p id="outputStatus" role="status" aria-live="polite"></p>
-                    <div id="outputTabs" role="tablist" aria-label="Output format"></div>
-                    <div id="outputPanel" role="tabpanel" tabindex="0"></div>
-                    <div id="outputActions" class="actions"></div>
+                    <div id="outputPanel" hidden></div>
+                    <label id="downloadChoice" hidden>Output to download
+                        <select id="downloadOutput"></select>
+                    </label>
+                    <div id="outputActions" class="output-actions actions" role="group" aria-label="Selected output downloads">
+                        <button id="downloadTxt" type="button" disabled>Download .txt</button>
+                        <button id="downloadDocx" type="button" disabled>Download .docx</button>
+                        <button id="retryOutput" type="button" hidden>Regenerate</button>
+                    </div>
                 </section>
             </section>
         </div>

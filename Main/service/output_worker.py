@@ -66,9 +66,7 @@ def process_next(data_dir=DATA_DIR):
         db.execute("BEGIN IMMEDIATE")
         # Timeout exceeds the HTTP generation timeout; a crashed worker can be recovered.
         db.execute("UPDATE styled_outputs SET status='queued' WHERE status='generating' AND updated_at<?", (now - 600,))
-        for row in db.execute("SELECT p.formats, t.id FROM output_preferences p JOIN transcripts t ON t.job_id=p.job_id WHERE t.id=(SELECT id FROM transcripts WHERE job_id=p.job_id ORDER BY created_at DESC LIMIT 1)").fetchall():
-            for format in json.loads(row["formats"]):
-                db.execute("INSERT OR IGNORE INTO styled_outputs (transcript_id, format, status, updated_at) VALUES (?, ?, 'queued', ?)", (row["id"], format, now))
+        # Preferences only remember selections; the explicit generation endpoint queues work.
         row = db.execute("SELECT o.*, t.text AS source FROM styled_outputs o JOIN transcripts t ON t.id=o.transcript_id WHERE o.status='queued' ORDER BY o.updated_at LIMIT 1").fetchone()
         if row is None:
             return False

@@ -102,8 +102,8 @@ async def create_job(request: Request, file: UploadFile, user=Depends(current_us
         output_formats = json.loads(formats)
     except (ValueError, TypeError):
         raise HTTPException(400, "Output selections must be a JSON list.")
-    if not isinstance(output_formats, list) or len(output_formats) > 3 or any(not isinstance(item, str) for item in output_formats):
-        raise HTTPException(400, "Choose up to three output formats.")
+    if not isinstance(output_formats, list) or len(output_formats) > 4 or any(not isinstance(item, str) for item in output_formats):
+        raise HTTPException(400, "Choose up to four output formats.")
     validate_preferences(content_type, output_formats)
     ext = checked_extension(file.filename)
     uploads = request.app.state.data_dir / "uploads"

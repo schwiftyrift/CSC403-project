@@ -11,6 +11,40 @@ from test_accounts import client, register, upload  # noqa: F401
 from test_transcript_download import add_transcript
 
 
+def test_caption_generation_and_distinct_download_names(client, monkeypatch):
+    register(client)
+    job = upload(client)
+    add_transcript(client, job, "Cells contain DNA.")
+    base = f"/jobs/{job}/outputs"
+    assert client.get(base).json() == []
+    assert client.post(base + "/captions").status_code == 409
+    with connect(client.app.state.data_dir) as db:
+        transcript = db.execute("SELECT id FROM transcripts WHERE job_id=?", (job,)).fetchone()[0]
+        db.execute("INSERT INTO transcript_words VALUES (?, ?, ?, ?, ?)", (transcript, 0, 0.0, 1.5, "Cells contain DNA."))
+    assert client.get(base + "/captions/download/srt").status_code == 409
+    assert client.post(base + "/captions").status_code == 202
+    assert not process_next(client.app.state.data_dir)
+    monkeypatch.setattr(output_worker, "generate", lambda format, text: text)
+    names = set()
+    for format in ["summary", "topics", "study_guide", "captions"]:
+        if format != "captions":
+            assert client.post(base + "/" + format).status_code == 202
+            assert process_next(client.app.state.data_dir)
+        for extension in (["srt", "vtt"] if format == "captions" else ["txt", "docx"]):
+            response = client.get(f"{base}/{format}/download/{extension}")
+            assert response.status_code == 200
+            name = response.headers["content-disposition"]
+            assert f"audio-{format}.{extension}" in name
+            assert name not in names
+            names.add(name)
+            if extension == "srt":
+                assert "00:00:00,000 -->" in response.text
+            if extension == "vtt":
+                assert response.text.startswith("WEBVTT")
+    assert client.get(base + "/captions/download/txt").status_code == 404
+    assert client.get(base + "/summary/download/srt").status_code == 404
+
+
 def test_upload_preferences_and_validation(client):
     register(client)
     response = client.post("/jobs", files={"file": ("lecture.wav", b"audio")},
@@ -21,6 +55,33 @@ def test_upload_preferences_and_validation(client):
     for value in ['{}', 'null', '["bad"]', '[{}]', 'broken']:
         assert client.post("/jobs", files={"file": ("x.wav", b"other")}, data={"formats": value}).status_code == 400
     assert client.put(f"/jobs/{job}/output-preferences", json={"content_type": "bad"}).status_code == 400
+
+
+@pytest.mark.parametrize("format", ["summary", "topics", "study_guide"])
+def test_preferences_require_an_explicit_generation_request(client, monkeypatch, format):
+    register(client)
+    response = client.post("/jobs", files={"file": ("lecture.wav", b"audio")},
+                           data={"content_type": "lecture", "formats": '["summary", "topics", "study_guide"]'})
+    assert response.status_code == 201
+    job = response.json()["job_id"]
+    add_transcript(client, job, "Cells contain DNA.")
+    with connect(client.app.state.data_dir) as db:
+        db.execute("UPDATE jobs SET status='done' WHERE job_id=?", (job,))
+    calls = []
+    def generate(format, text):
+        calls.append(format)
+        return "Cells contain DNA."
+    monkeypatch.setattr(output_worker, "generate", generate)
+    assert not process_next(client.app.state.data_dir)
+    assert client.get(f"/jobs/{job}/outputs").json() == []
+    client.put(f"/jobs/{job}/output-preferences", json={"content_type": "notes", "formats": ["study_guide"]})
+    assert not process_next(client.app.state.data_dir)
+    assert calls == []
+    assert client.post(f"/jobs/{job}/outputs/{format}").status_code == 202
+    assert process_next(client.app.state.data_dir)
+    assert calls == [format]
+    assert [item["format"] for item in client.get(f"/jobs/{job}/outputs").json()] == [format]
+    assert not process_next(client.app.state.data_dir)
 
 
 def test_old_upload_generation_download_regeneration_and_deletion(client, monkeypatch):
@@ -54,6 +115,8 @@ def test_automatic_outputs_failure_retry_and_stale_recovery(client, monkeypatch)
     def fail(*args):
         raise ValueError("Generation failed")
     monkeypatch.setattr(output_worker, "generate", fail)
+    assert not process_next(client.app.state.data_dir)
+    assert client.post(f"/jobs/{job}/outputs/study_guide").status_code == 202
     assert process_next(client.app.state.data_dir)
     assert client.get(f"/jobs/{job}/outputs").json()[0]["status"] == "failed"
     assert client.get(f"/jobs/{job}/transcript").json()["text"] == "Cells contain DNA."
